@@ -30,6 +30,8 @@ export interface Artwork {
   title: string;
   photographer: string;
   photographerHonors?: string; // e.g. "EFIAP/d3, MPSA"
+  school?: string;             // School / Institution (e.g. "Rajapaksa Central College, Weeraketiya")
+  place?: string;              // Specific award ranking (e.g. "1st Place - Gold Award", "2nd Place", "Best of Show")
   country: string;
   countryCode: string;
   category: string;
@@ -67,19 +69,21 @@ export interface GuestbookEntry {
   avatarColor?: string;
 }
 
-export interface CameraPose {
-  x: number;
-  y: number;
-  z: number;
-  targetX: number;
-  targetY: number;
-  targetZ: number;
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl?: string;
+  provider: 'google' | 'password';
 }
 
 export interface SalonInfo {
   name: string;
   edition: string;
   year: number;
+  organizedBy: string;
+  school: string;
   patronages: {
     fiap: string;
     psa: string;

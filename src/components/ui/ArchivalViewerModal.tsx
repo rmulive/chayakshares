@@ -14,6 +14,8 @@ import {
   Award,
   Sliders,
   ExternalLink,
+  School,
+  User,
 } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../../store/exhibitionStore';
 
@@ -95,26 +97,40 @@ export const ArchivalViewerModal: React.FC = () => {
     >
       {/* Top Floating Control Bar */}
       <div className="absolute top-4 inset-x-4 sm:inset-x-8 z-30 flex items-center justify-between pointer-events-none">
-        {/* Left: Artwork Title & Award Badge */}
-        <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-2xl pointer-events-auto">
+        {/* Left: Artwork Title & Prominently Highlighted Name, Place, and School */}
+        <div className="flex items-center gap-3.5 glass-panel px-4 py-2.5 rounded-2xl pointer-events-auto border border-amber-500/30 shadow-2xl">
           <div className="flex flex-col">
-            <h3 className="font-serif text-base sm:text-lg font-bold text-white tracking-wide">
-              {activeArtwork.title}
-            </h3>
-            <span className="text-xs text-slate-300">
-              {activeArtwork.photographer} {activeArtwork.photographerHonors && `(${activeArtwork.photographerHonors})`} • {activeArtwork.country}
-            </span>
-          </div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-serif text-base sm:text-lg font-bold text-white tracking-wide">
+                {activeArtwork.title}
+              </h3>
+              <span
+                className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border shadow-sm ${
+                  isAward
+                    ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 border-amber-300 font-extrabold'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                }`}
+              >
+                🏆 {activeArtwork.place || activeArtwork.awardTier}
+              </span>
+            </div>
 
-          <span
-            className={`text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wider ml-2 border ${
-              isAward
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-md shadow-amber-500/20'
-                : 'bg-slate-800 text-slate-300 border-slate-700'
-            }`}
-          >
-            {activeArtwork.awardTier}
-          </span>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs mt-1">
+              <span className="font-bold text-amber-300 flex items-center gap-1">
+                <User size={13} className="text-amber-400" />
+                {activeArtwork.photographer} {activeArtwork.photographerHonors && `(${activeArtwork.photographerHonors})`}
+              </span>
+              <span className="text-slate-500">•</span>
+              <span className="font-semibold text-cyan-300 flex items-center gap-1">
+                <School size={13} className="text-cyan-400" />
+                {activeArtwork.school || 'Rajapaksa Central College, Weeraketiya'}
+              </span>
+              <span className="text-slate-500">•</span>
+              <span className="text-slate-400">
+                📍 {activeArtwork.country}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Right: Inspection Toolbar & Close */}
@@ -215,9 +231,26 @@ export const ArchivalViewerModal: React.FC = () => {
             </span>
           </div>
 
-          {/* Description & Statement */}
-          <div className="py-3 border-b border-slate-800/80">
-            <p className="text-xs text-slate-300 leading-relaxed italic">
+          {/* Award, Name, and School Highlight Box */}
+          <div className="py-3 border-b border-slate-800">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-slate-900 border border-amber-500/35">
+              <div className="text-[10px] uppercase font-mono tracking-wider text-amber-400 font-bold mb-0.5">
+                Official Salon Attribution
+              </div>
+              <div className="text-sm font-serif font-extrabold text-amber-300">
+                🏆 {activeArtwork.place || activeArtwork.awardTier}
+              </div>
+              <div className="text-xs font-bold text-white mt-1 flex items-center gap-1.5">
+                <User size={13} className="text-amber-400" />
+                {activeArtwork.photographer} {activeArtwork.photographerHonors && `(${activeArtwork.photographerHonors})`}
+              </div>
+              <div className="text-[11px] font-medium text-cyan-300 mt-0.5 flex items-center gap-1.5">
+                <School size={13} className="text-cyan-400" />
+                {activeArtwork.school || 'Rajapaksa Central College, Weeraketiya'}
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed italic mt-3">
               "{activeArtwork.description}"
             </p>
             {activeArtwork.curatorNote && (

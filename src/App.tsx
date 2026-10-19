@@ -10,7 +10,7 @@ import { GuestbookModal } from './components/ui/GuestbookModal';
 import { CuratorStudioModal } from './components/ui/CuratorStudioModal';
 import { SalonInfoModal } from './components/ui/SalonInfoModal';
 import { useExhibitionStore, exhibitionStore } from './store/exhibitionStore';
-import { Volume2, Sparkles, ArrowRight } from 'lucide-react';
+import { Volume2, ArrowRight } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [sceneInstance, setSceneInstance] = useState<GalleryScene | null>(null);
@@ -52,20 +52,39 @@ export const App: React.FC = () => {
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Emblem */}
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-600 to-yellow-400 text-slate-950 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-amber-500/30">
-              <Sparkles size={32} />
+            {/* Official Logos Trio */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <img
+                src="/logos/school_crest.png"
+                alt="Rajapaksa Central College"
+                className="h-14 w-auto object-contain filter drop-shadow-[0_2px_10px_rgba(234,179,8,0.4)]"
+              />
+              <div className="h-12 w-px bg-amber-500/40" />
+              <img
+                src="/logos/chayaksha_logo.png"
+                alt="Chayaksha 26'"
+                className="h-16 w-auto object-contain filter drop-shadow-[0_2px_14px_rgba(234,179,8,0.6)]"
+              />
+              <div className="h-12 w-px bg-amber-500/40" />
+              <img
+                src="/logos/radapasa_media_unit.png"
+                alt="Radapasa Media Unit"
+                className="h-14 w-auto object-contain filter drop-shadow-[0_2px_10px_rgba(234,179,8,0.4)]"
+              />
             </div>
 
             <h1 className="font-serif text-3xl sm:text-4xl font-extrabold text-white tracking-wider mb-1">
-              CHAYAKSHA
+              CHAYAKSHA 26'
             </h1>
-            <p className="text-xs font-mono text-amber-400 mb-4 tracking-widest uppercase">
-              छाय • आक्ष | Virtual Photography Salon 2026
+            <p className="text-xs font-mono text-amber-400 mb-1 tracking-widest uppercase">
+              Virtual Photography Exhibition 2026
+            </p>
+            <p className="text-xs text-amber-300/90 font-medium mb-4">
+              Organized by Radapasa Media Unit • Rajapaksa Central College, Weeraketiya
             </p>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-6">
-              Welcome to the digital sanctuary of international salon photography. Stroll through the continuous 3D hallway, inspect archival works with EXIF detail, and immerse yourself in the curated wings.
+              Welcome to the digital sanctuary of photography. Stroll through the uninterrupted 3D grand hallway, inspect award-winning works honoring photographer Name, Place, and School alongside technical camera settings, and immerse yourself in the curated gallery wings.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">

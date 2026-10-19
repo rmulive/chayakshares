@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Trophy, Eye, ExternalLink } from 'lucide-react';
+import { X, Search, Trophy, Eye, ExternalLink, School, Camera } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../../store/exhibitionStore';
 import type { Artwork } from '../../types/exhibition';
 
@@ -31,10 +31,12 @@ export const SalonCatalogueModal: React.FC = () => {
         const query = searchQuery.toLowerCase();
         const matchesTitle = art.title.toLowerCase().includes(query);
         const matchesArtist = art.photographer.toLowerCase().includes(query);
+        const matchesSchool = art.school ? art.school.toLowerCase().includes(query) : false;
+        const matchesPlace = art.place ? art.place.toLowerCase().includes(query) : false;
         const matchesCountry = art.country.toLowerCase().includes(query);
         const matchesCamera = art.exif.camera.toLowerCase().includes(query);
         const matchesDesc = art.description.toLowerCase().includes(query);
-        return matchesTitle || matchesArtist || matchesCountry || matchesCamera || matchesDesc;
+        return matchesTitle || matchesArtist || matchesSchool || matchesPlace || matchesCountry || matchesCamera || matchesDesc;
       }
 
       return true;
@@ -181,16 +183,16 @@ export const SalonCatalogueModal: React.FC = () => {
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
                   />
-                  {/* Badge */}
-                  <div className="absolute top-2.5 left-2.5">
+                  {/* Place / Award Badge */}
+                  <div className="absolute top-2.5 left-2.5 max-w-[85%]">
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider backdrop-blur-md shadow-md border ${
+                      className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider backdrop-blur-md shadow-md border truncate block ${
                         isAward
-                          ? 'bg-amber-500/90 text-slate-950 border-amber-300'
-                          : 'bg-slate-900/80 text-slate-300 border-slate-700'
+                          ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 border-amber-300 font-extrabold'
+                          : 'bg-slate-900/85 text-slate-300 border-slate-700'
                       }`}
                     >
-                      {art.awardTier}
+                      🏆 {art.place || art.awardTier}
                     </span>
                   </div>
 
@@ -198,14 +200,14 @@ export const SalonCatalogueModal: React.FC = () => {
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-3 backdrop-blur-xs">
                     <button
                       onClick={() => handleInspect(art)}
-                      className="px-3 py-1.5 rounded-xl bg-white text-slate-950 text-xs font-semibold flex items-center gap-1 hover:bg-amber-400 transition-colors shadow"
+                      className="px-3 py-1.5 rounded-xl bg-white text-slate-950 text-xs font-semibold flex items-center gap-1 hover:bg-amber-400 transition-colors shadow cursor-pointer"
                       title="Archival Deep Zoom"
                     >
                       <Eye size={14} /> Inspect
                     </button>
                     <button
                       onClick={() => handleTeleportToArt(art)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-semibold flex items-center gap-1 hover:bg-amber-400 transition-colors shadow"
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-semibold flex items-center gap-1 hover:bg-amber-400 transition-colors shadow cursor-pointer"
                       title="Teleport in 3D Gallery"
                     >
                       <ExternalLink size={14} /> Visit in 3D
@@ -213,20 +215,30 @@ export const SalonCatalogueModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Details info */}
-                <div className="p-3.5 flex flex-col flex-1 justify-between">
+                {/* Details info highlighting Name, School, and Camera specs */}
+                <div className="p-3.5 flex flex-col flex-1 justify-between gap-2">
                   <div>
                     <h4 className="font-serif text-sm font-semibold text-slate-100 truncate group-hover:text-amber-300 transition-colors">
                       {art.title}
                     </h4>
-                    <p className="text-xs text-slate-400 truncate mt-0.5">
-                      {art.photographer} • <span className="text-slate-500">{art.country}</span>
+                    {/* Photographer Name (Highlighted) */}
+                    <p className="text-xs font-bold text-amber-300 truncate mt-0.5">
+                      {art.photographer} {art.photographerHonors && <span className="text-[10px] font-normal text-slate-400">({art.photographerHonors})</span>}
+                    </p>
+                    {/* School (Highlighted) */}
+                    <p className="text-[11px] text-cyan-300 font-medium truncate flex items-center gap-1 mt-0.5">
+                      <School size={11} className="text-cyan-400 shrink-0" />
+                      <span className="truncate">{art.school || 'Rajapaksa Central College, Weeraketiya'}</span>
                     </p>
                   </div>
 
-                  <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                    <span>{art.exif.camera.split(' ')[0]}</span>
-                    <span>{art.exif.year}</span>
+                  {/* Camera Settings & EXIF data */}
+                  <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                    <span className="flex items-center gap-1 truncate max-w-[70%]">
+                      <Camera size={11} className="text-amber-400 shrink-0" />
+                      <span className="truncate">{art.exif.camera.split(' ')[0]} • {art.exif.aperture} • {art.exif.shutterSpeed}</span>
+                    </span>
+                    <span className="shrink-0">ISO {art.exif.iso}</span>
                   </div>
                 </div>
               </div>

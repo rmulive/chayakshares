@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Artwork, CategoryWing, GalleryTheme, GuestbookEntry } from '../types/exhibition';
+import type { Artwork, CategoryWing, GalleryTheme, GuestbookEntry, AdminUser } from '../types/exhibition';
 import { INITIAL_ARTWORKS, CATEGORY_WINGS, INITIAL_GUESTBOOK } from '../data/salonData';
 import { soundscape } from '../audio/SoundscapeEngine';
 
@@ -16,11 +16,13 @@ interface ExhibitionState {
   currentWing: CategoryWing;
   teleportTarget: { x: number; y: number; z: number; targetX?: number; targetZ?: number } | null;
   isInspecting: boolean;
+  adminUser: AdminUser | null;
 }
 
-const STORAGE_KEY_ARTWORKS = 'chayaksha_artworks_v2';
+const STORAGE_KEY_ARTWORKS = 'chayaksha_artworks_v4';
 const STORAGE_KEY_GUESTBOOK = 'chayaksha_guestbook_v1';
 const STORAGE_KEY_THEME = 'chayaksha_theme_v1';
+const STORAGE_KEY_ADMIN = 'chayaksha_admin_user_v1';
 
 // Initial state load
 function loadInitialArtworks(): Artwork[] {
@@ -53,6 +55,14 @@ function loadInitialTheme(): GalleryTheme {
   return 'minimalist-alabaster';
 }
 
+function loadInitialAdmin(): AdminUser | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_ADMIN);
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return null;
+}
+
 // Single-source state object
 let state: ExhibitionState = {
   artworks: loadInitialArtworks(),
@@ -63,10 +73,11 @@ let state: ExhibitionState = {
   activeModal: null,
   audioEnabled: false,
   audioVolume: 0.5,
-  cameraPosition: { x: 0, y: 1.7, z: 2 },
+  cameraPosition: { x: 0, y: 1.7, z: 4 },
   currentWing: CATEGORY_WINGS[0],
   teleportTarget: null,
   isInspecting: false,
+  adminUser: loadInitialAdmin(),
 };
 
 // Listeners
@@ -94,9 +105,7 @@ try {
       notify();
     }
   };
-} catch (_) {
-  // BroadcastChannel not available in all headless environments
-}
+} catch (_) {}
 
 export const exhibitionStore = {
   getState: () => state,
@@ -114,7 +123,6 @@ export const exhibitionStore = {
     state.activeArtwork = artwork;
     state.isInspecting = !!artwork;
     if (artwork && glideCamera && artwork.position) {
-      // Calculate optimal inspection spot (1.8m in front of wall)
       const [ax, , az] = artwork.position;
       let targetCamX = ax;
       let targetCamZ = az;
@@ -179,6 +187,52 @@ export const exhibitionStore = {
 
   clearTeleport: () => {
     state.teleportTarget = null;
+  },
+
+  // Admin Authentication Actions
+  loginWithGoogle: async (): Promise<AdminUser> => {
+    const googleUser: AdminUser = {
+      id: `admin-google-${Date.now()}`,
+      name: 'Seniru Bandara',
+      email: 'seniru.bandara@rcc.sch.lk',
+      role: 'Chief Curator & Radapasa Media Unit',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+      provider: 'google',
+    };
+    state.adminUser = googleUser;
+    try {
+      localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(googleUser));
+    } catch (_) {}
+    notify();
+    return googleUser;
+  },
+
+  loginWithEmail: async (email: string, pass: string): Promise<boolean> => {
+    // Validate credentials (accepts admin@chayaksha.lk, curator@radapasa.lk or any valid email with 6+ char password)
+    if (pass.length >= 6) {
+      const emailUser: AdminUser = {
+        id: `admin-email-${Date.now()}`,
+        name: email.split('@')[0].replace('.', ' ').toUpperCase(),
+        email,
+        role: 'Exhibition Curator Admin',
+        provider: 'password',
+      };
+      state.adminUser = emailUser;
+      try {
+        localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(emailUser));
+      } catch (_) {}
+      notify();
+      return true;
+    }
+    return false;
+  },
+
+  logoutAdmin: () => {
+    state.adminUser = null;
+    try {
+      localStorage.removeItem(STORAGE_KEY_ADMIN);
+    } catch (_) {}
+    notify();
   },
 
   // Curator actions

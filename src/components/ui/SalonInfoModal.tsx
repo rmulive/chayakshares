@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Award, ShieldCheck, Users, Eye } from 'lucide-react';
+import { X, Award, ShieldCheck, Users } from 'lucide-react';
 import { exhibitionStore } from '../../store/exhibitionStore';
 import { SALON_INFO } from '../../data/salonData';
 
@@ -9,16 +9,30 @@ export const SalonInfoModal: React.FC = () => {
       <div className="w-full max-w-2xl glass-panel rounded-3xl p-6 sm:p-8 flex flex-col max-h-[90vh] shadow-2xl border border-slate-700/80 overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-700/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center">
-              <Eye size={20} />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <img
+                src="/logos/school_crest.png"
+                alt="Rajapaksa Central College"
+                className="h-10 w-auto object-contain filter drop-shadow"
+              />
+              <img
+                src="/logos/chayaksha_logo.png"
+                alt="Chayaksha 26'"
+                className="h-9 w-auto object-contain filter drop-shadow"
+              />
+              <img
+                src="/logos/radapasa_media_unit.png"
+                alt="Radapasa Media Unit"
+                className="h-10 w-auto object-contain filter drop-shadow hidden sm:block"
+              />
             </div>
-            <div>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-white tracking-wide">
-                About Chayaksha 2026
+            <div className="border-l border-slate-700/60 pl-3">
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-white tracking-wide">
+                Chayaksha 26' Exhibition
               </h2>
-              <span className="text-xs text-amber-400 font-mono">
-                छाय • आक्ष | Shadow & Eye • {SALON_INFO.edition}
+              <span className="text-xs text-amber-400 font-mono block">
+                Radapasa Media Unit • Rajapaksa Central College, Weeraketiya
               </span>
             </div>
           </div>

@@ -116,22 +116,13 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({ sceneInstance }) =
 
   return (
     <>
-      {/* Center Screen Interactive Focus Reticle */}
-      {!isMobile && (
-        <div className="fixed inset-0 pointer-events-none z-20 flex items-center justify-center">
-          {focusedTitle ? (
-            <div className="flex flex-col items-center animate-fadeIn">
-              <div className="w-8 h-8 rounded-full border-2 border-amber-400 bg-amber-400/20 shadow-lg shadow-amber-400/50 flex items-center justify-center animate-pulse">
-                <Eye size={14} className="text-amber-300" />
-              </div>
-              <div className="mt-2 px-3 py-1 rounded-full glass-panel text-[11px] font-medium text-amber-300 border border-amber-500/40 shadow-xl whitespace-nowrap">
-                <span className="font-mono font-bold bg-amber-400/20 px-1.5 py-0.5 rounded mr-1.5">E / CLICK</span>
-                Inspect "{focusedTitle}"
-              </div>
-            </div>
-          ) : (
-            <div className="w-1.5 h-1.5 rounded-full bg-white/40 ring-4 ring-black/20" />
-          )}
+      {/* Floating Hover Focus Badge */}
+      {focusedTitle && (
+        <div className="fixed top-20 inset-x-0 pointer-events-none z-30 flex justify-center animate-fadeIn">
+          <div className="px-4 py-1.5 rounded-full glass-panel-gold text-xs font-medium text-amber-200 border border-amber-500/50 shadow-2xl flex items-center gap-2">
+            <Eye size={14} className="text-amber-400 animate-pulse" />
+            <span>Click to Inspect: <strong className="text-white font-serif">"{focusedTitle}"</strong></span>
+          </div>
         </div>
       )}
 
@@ -175,7 +166,7 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({ sceneInstance }) =
               <div className="h-3 w-px bg-slate-700" />
               <div className="flex items-center gap-1 text-[11px] text-slate-400">
                 <MousePointer size={12} className="text-amber-400" />
-                <span>Click Canvas to Look Freely</span>
+                <span>Drag Mouse to Look</span>
               </div>
             </div>
           )}

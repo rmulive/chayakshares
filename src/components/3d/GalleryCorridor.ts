@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { ThemeManager } from './ThemeManager';
-import { CATEGORY_WINGS, SALON_INFO } from '../../data/salonData';
+import { CATEGORY_WINGS } from '../../data/salonData';
 import { createSignageTexture } from '../../utils/textures';
+
+const textureLoader = new THREE.TextureLoader();
 
 export class GalleryCorridor extends THREE.Group {
   private themeManager: ThemeManager;
@@ -18,9 +20,9 @@ export class GalleryCorridor extends THREE.Group {
     this.buildWalls();
     this.buildCeilingAndLouvers();
     this.buildGrandEntranceColonnade();
-    this.buildGalleryBenches();
+    // (Benches/chairs completely removed per user request)
     this.buildWingPortals();
-    this.buildGrandEntrance();
+    this.buildGrandEntranceLogos();
   }
 
   private buildFloor(): void {
@@ -48,7 +50,7 @@ export class GalleryCorridor extends THREE.Group {
     const stripMat = new THREE.MeshBasicMaterial({
       color: 0xf59e0b,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.4,
     });
 
     const leftStrip = new THREE.Mesh(stripGeo, stripMat);
@@ -80,7 +82,7 @@ export class GalleryCorridor extends THREE.Group {
     rightWall.receiveShadow = true;
     this.add(rightWall);
 
-    // 3. Foyer Front Wall (Z = 0) with Hero Alcove
+    // 3. Foyer Front Wall (Z = 0)
     const endWallGeo = new THREE.PlaneGeometry(this.width, this.height);
     const frontWall = new THREE.Mesh(endWallGeo, wallMat);
     frontWall.position.set(0, this.height / 2, 0);
@@ -94,8 +96,8 @@ export class GalleryCorridor extends THREE.Group {
 
     // Terminus signage at the end of the corridor
     const termGeo = new THREE.PlaneGeometry(6, 1.8);
-    const termTex = createSignageTexture('CHAYAKSHA SALON', 'Thank you for visiting. Please sign the guestbook.');
-    const termMat = new THREE.MeshBasicMaterial({ map: termTex, transparent: true });
+    const termTex = createSignageTexture('CHAYAKSHA 26’', 'Rajapaksa Central College • Radapasa Media Unit');
+    const termMat = new THREE.MeshBasicMaterial({ map: termTex, transparent: true, depthWrite: false });
     const termMesh = new THREE.Mesh(termGeo, termMat);
     termMesh.rotation.y = Math.PI;
     termMesh.position.set(0, 3.4, this.length - 0.1);
@@ -124,7 +126,7 @@ export class GalleryCorridor extends THREE.Group {
     lightStrip.position.set(0, this.height - 0.05, this.length / 2);
     this.add(lightStrip);
 
-    // Architectural transverse ceiling cross-beams and wooden louvers
+    // Architectural transverse ceiling cross-beams and downlights
     const beamGeo = new THREE.BoxGeometry(this.width, 0.35, 0.4);
     const beamMat = new THREE.MeshStandardMaterial({
       color: 0x111827,
@@ -138,7 +140,7 @@ export class GalleryCorridor extends THREE.Group {
       this.add(beam);
 
       // Downlight spot underneath each cross-beam
-      const downLight = new THREE.PointLight(0xfff8eb, 2.8, 15, 1.8);
+      const downLight = new THREE.PointLight(0xfff8eb, 1.5, 14, 2.0);
       downLight.position.set(0, this.height - 0.45, z);
       this.add(downLight);
     }
@@ -157,8 +159,8 @@ export class GalleryCorridor extends THREE.Group {
     const colGeo = new THREE.CylinderGeometry(0.35, 0.4, this.height, 24);
     const plinthGeo = new THREE.BoxGeometry(0.9, 0.3, 0.9);
 
-    // Column positions in the Grand Foyer (Z = 5, 10, 15)
-    [5, 10, 15].forEach((z) => {
+    // Column positions in the Grand Foyer (Z = 6, 12)
+    [6, 12].forEach((z) => {
       // Left Colonnade (X = -3.8)
       const leftCol = new THREE.Mesh(colGeo, colMat);
       leftCol.position.set(-3.8, this.height / 2, z);
@@ -182,63 +184,12 @@ export class GalleryCorridor extends THREE.Group {
   }
 
   /**
-   * Minimalist Architectural Gallery Benches placed in resting areas
+   * Category Portals with Glowing Highlighted Text (No Liquid Glass)
    */
-  private buildGalleryBenches(): void {
-    const benchPositions = [12, 32, 58, 86, 114, 142, 170];
-
-    const woodMat = new THREE.MeshStandardMaterial({
-      color: 0x1c1917,
-      roughness: 0.35,
-      metalness: 0.1,
-    });
-    const cushionMat = new THREE.MeshStandardMaterial({
-      color: 0x27272a,
-      roughness: 0.85,
-    });
-    const legMat = new THREE.MeshStandardMaterial({
-      color: 0x09090b,
-      metalness: 0.9,
-      roughness: 0.2,
-    });
-
-    const benchBaseGeo = new THREE.BoxGeometry(2.4, 0.1, 0.7);
-    const cushionGeo = new THREE.BoxGeometry(2.2, 0.12, 0.6);
-    const legGeo = new THREE.BoxGeometry(0.08, 0.35, 0.65);
-
-    benchPositions.forEach((z) => {
-      const benchGroup = new THREE.Group();
-      benchGroup.position.set(0, 0, z);
-
-      // Base slab
-      const base = new THREE.Mesh(benchBaseGeo, woodMat);
-      base.position.y = 0.38;
-      base.castShadow = true;
-      benchGroup.add(base);
-
-      // Cushion top
-      const cushion = new THREE.Mesh(cushionGeo, cushionMat);
-      cushion.position.y = 0.48;
-      cushion.castShadow = true;
-      benchGroup.add(cushion);
-
-      // Legs
-      const leftLeg = new THREE.Mesh(legGeo, legMat);
-      leftLeg.position.set(-0.9, 0.175, 0);
-      benchGroup.add(leftLeg);
-
-      const rightLeg = new THREE.Mesh(legGeo, legMat);
-      rightLeg.position.set(0.9, 0.175, 0);
-      benchGroup.add(rightLeg);
-
-      this.add(benchGroup);
-    });
-  }
-
   private buildWingPortals(): void {
     const portalMat = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
-      metalness: 0.8,
+      metalness: 0.85,
       roughness: 0.2,
     });
 
@@ -263,47 +214,82 @@ export class GalleryCorridor extends THREE.Group {
       beam.position.set(0, this.height - 0.22, z);
       this.add(beam);
 
-      // Floating Illuminated Wing Signage Banner
-      const signGeo = new THREE.PlaneGeometry(5.4, 1.4);
+      // Pure Highlighted Glowing Text Signage (NO liquid glass)
+      const signGeo = new THREE.PlaneGeometry(6.2, 1.6);
       const signTex = createSignageTexture(wing.name, wing.description, wing.colorHex);
       const signMat = new THREE.MeshBasicMaterial({
         map: signTex,
         transparent: true,
+        depthWrite: false,
       });
 
       // Front facing sign (walking forward +Z)
       const frontSign = new THREE.Mesh(signGeo, signMat);
-      frontSign.position.set(0, this.height - 1.0, z - 0.2);
+      frontSign.position.set(0, this.height - 1.1, z - 0.22);
       this.add(frontSign);
 
       // Back facing sign (walking backward -Z)
       const backSign = new THREE.Mesh(signGeo, signMat);
       backSign.rotation.y = Math.PI;
-      backSign.position.set(0, this.height - 1.0, z + 0.2);
+      backSign.position.set(0, this.height - 1.1, z + 0.22);
       this.add(backSign);
     });
   }
 
-  private buildGrandEntrance(): void {
-    // Grand Entrance Arch at Z = 0.2 above the Hero Piece
-    const entranceBannerGeo = new THREE.PlaneGeometry(7.5, 1.8);
-    const entranceTex = createSignageTexture(
-      'CHAYAKSHA 2026',
-      `${SALON_INFO.edition} • Under Patronage of ${SALON_INFO.patronages.fiap} & ${SALON_INFO.patronages.psa}`,
-      '#f59e0b'
-    );
-    const entranceMat = new THREE.MeshBasicMaterial({ map: entranceTex, transparent: true });
-    const entranceBanner = new THREE.Mesh(entranceBannerGeo, entranceMat);
-    entranceBanner.position.set(0, 5.3, 0.2);
-    this.add(entranceBanner);
+  /**
+   * Prominently display the 3 official logos in the 3D exhibition hall:
+   * 1. Chayaksha 26' Logo (center)
+   * 2. Rajapaksa Central College Crest (left)
+   * 3. Radapasa Media Unit Logo (right)
+   */
+  private buildGrandEntranceLogos(): void {
+    // 1. Center Official CHAYAKSHA 26' Logo
+    textureLoader.load('/logos/chayaksha_logo.png', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const logoGeo = new THREE.PlaneGeometry(3.8, 2.2);
+      const logoMat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+      });
+      const logoMesh = new THREE.Mesh(logoGeo, logoMat);
+      logoMesh.position.set(0, 5.2, 0.22);
+      this.add(logoMesh);
+    });
 
-    // Soft warm-white museum ambient illumination
-    const foyerLightL = new THREE.PointLight(0xfff8eb, 1.6, 14, 2.0);
-    foyerLightL.position.set(-3.8, 5.0, 5.0);
-    this.add(foyerLightL);
+    // 2. Left: Rajapaksa Central College Crest
+    textureLoader.load('/logos/school_crest.png', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const crestGeo = new THREE.PlaneGeometry(1.3, 1.3);
+      const crestMat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+      });
+      const crestMesh = new THREE.Mesh(crestGeo, crestMat);
+      crestMesh.position.set(-3.2, 5.2, 0.22);
+      this.add(crestMesh);
+    });
 
-    const foyerLightR = new THREE.PointLight(0xfff8eb, 1.6, 14, 2.0);
-    foyerLightR.position.set(3.8, 5.0, 5.0);
-    this.add(foyerLightR);
+    // 3. Right: Radapasa Media Unit Logo
+    textureLoader.load('/logos/radapasa_media_unit.png', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const rccGeo = new THREE.PlaneGeometry(1.3, 1.3);
+      const rccMat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+      });
+      const rccMesh = new THREE.Mesh(rccGeo, rccMat);
+      rccMesh.position.set(3.2, 5.2, 0.22);
+      this.add(rccMesh);
+    });
+
+    // Soft architectural illumination for the entrance wall logos
+    const logoLight = new THREE.SpotLight(0xfff8eb, 2.8, 12, Math.PI / 4, 0.5, 1.8);
+    logoLight.position.set(0, 5.8, 3.5);
+    logoLight.target.position.set(0, 5.2, 0.2);
+    this.add(logoLight);
+    this.add(logoLight.target);
   }
 }

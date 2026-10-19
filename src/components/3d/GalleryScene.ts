@@ -129,8 +129,6 @@ export class GalleryScene {
   };
 
   private onPointerMove = (e: MouseEvent) => {
-    if (this.controller.isPointerLocked) return;
-
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -139,12 +137,17 @@ export class GalleryScene {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
 
-    if (intersects.length > 0 && intersects[0].distance < 14) {
+    if (intersects.length > 0 && intersects[0].distance < 16) {
+      const hit = intersects[0].object;
+      if (hit.userData?.isArtwork && hit.userData.artwork) {
+        this.focusedArtwork = hit.userData.artwork as Artwork;
+      }
       if (!this.isHoveringArtwork) {
         this.isHoveringArtwork = true;
         this.renderer.domElement.style.cursor = 'pointer';
       }
     } else {
+      this.focusedArtwork = null;
       if (this.isHoveringArtwork) {
         this.isHoveringArtwork = false;
         this.renderer.domElement.style.cursor = 'default';
@@ -154,15 +157,9 @@ export class GalleryScene {
 
   private onClick = (e: MouseEvent) => {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    
-    // In pointer lock mode, raycast from dead center (0, 0)
-    if (this.controller.isPointerLocked) {
-      this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-    } else {
-      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-    }
+    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
 
     const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
 
@@ -184,19 +181,6 @@ export class GalleryScene {
     // Update camera motion & head bobbing
     if (this.controller) {
       this.controller.update(delta);
-    }
-
-    // Center raycast for focused artwork detection
-    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-    const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
-
-    if (intersects.length > 0 && intersects[0].distance < 10) {
-      const hit = intersects[0].object;
-      if (hit.userData?.isArtwork && hit.userData.artwork) {
-        this.focusedArtwork = hit.userData.artwork as Artwork;
-      }
-    } else {
-      this.focusedArtwork = null;
     }
 
     // Render 3D Scene

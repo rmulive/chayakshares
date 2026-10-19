@@ -258,86 +258,138 @@ export function getFloorTexture(theme: GalleryTheme): THREE.CanvasTexture {
 }
 
 /**
- * Creates metallic plaque canvas texture
+ * Creates metallic plaque canvas texture with Name, Place, School, and Camera Data
  */
 export function createPlaqueTexture(
   title: string,
   photographer: string,
   award: string,
-  isAward: boolean
+  isAward: boolean,
+  place?: string,
+  school?: string,
+  cameraData?: string
 ): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
+  canvas.width = 640;
+  canvas.height = 340;
   const ctx = canvas.getContext('2d')!;
 
   if (isAward) {
     // Brushed gold brass
-    const grad = ctx.createLinearGradient(0, 0, 512, 256);
+    const grad = ctx.createLinearGradient(0, 0, 640, 340);
     grad.addColorStop(0, '#fef08a');
     grad.addColorStop(0.3, '#ca8a04');
     grad.addColorStop(0.7, '#eab308');
     grad.addColorStop(1, '#a16207');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
+    ctx.fillRect(0, 0, 640, 340);
 
-    // Border bevel
+    // Bevel borders
     ctx.strokeStyle = '#fef08a';
     ctx.lineWidth = 6;
-    ctx.strokeRect(6, 6, 500, 244);
+    ctx.strokeRect(6, 6, 628, 328);
     ctx.strokeStyle = '#713f12';
     ctx.lineWidth = 2;
-    ctx.strokeRect(12, 12, 488, 232);
+    ctx.strokeRect(14, 14, 612, 312);
 
-    // Text in deep etched bronze
-    ctx.fillStyle = '#422006';
     ctx.textAlign = 'center';
-    
-    ctx.font = 'bold 22px serif';
-    ctx.fillText(award.toUpperCase(), 256, 52);
 
-    ctx.font = 'italic 28px serif';
-    ctx.fillText(`"${title}"`, 256, 115);
+    // 1. PLACE & AWARD TIER (Prominently Highlighted)
+    ctx.fillStyle = '#422006';
+    ctx.font = 'bold 24px "Cinzel", Georgia, serif';
+    const displayPlace = place ? `${place.toUpperCase()}` : award.toUpperCase();
+    ctx.fillText(displayPlace, 320, 52);
 
-    ctx.font = '22px sans-serif';
-    ctx.fillText(photographer, 256, 170);
+    // Title
+    ctx.font = 'italic bold 26px serif';
+    ctx.fillStyle = '#1c1917';
+    ctx.fillText(`"${title}"`, 320, 102);
 
-    ctx.font = '14px sans-serif';
+    // 2. PHOTOGRAPHER NAME (Prominently Highlighted)
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillStyle = '#451a03';
+    ctx.fillText(photographer.toUpperCase(), 320, 150);
+
+    // 3. SCHOOL (Prominently Highlighted)
+    ctx.font = '600 18px sans-serif';
+    ctx.fillStyle = '#78350f';
+    const schoolText = school || 'Rajapaksa Central College, Weeraketiya';
+    ctx.fillText(schoolText, 320, 192);
+
+    // Accent line
+    ctx.strokeStyle = '#ca8a04';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(120, 215);
+    ctx.lineTo(520, 215);
+    ctx.stroke();
+
+    // 4. CAMERA SETTINGS & DATA
+    ctx.font = '500 15px monospace';
+    ctx.fillStyle = '#5c2b07';
+    const camText = cameraData || 'SONY A1 • 50mm • f/2.8 • 1/2000s • ISO 100';
+    ctx.fillText(camText, 320, 248);
+
+    // Footer
+    ctx.font = 'bold 13px sans-serif';
     ctx.fillStyle = '#713f12';
-    ctx.fillText('CHAYAKSHA SALON 2026', 256, 215);
+    ctx.fillText('CHAYAKSHA 26’ • RADAPASA MEDIA UNIT', 320, 298);
 
   } else {
     // Sleek matte slate plaque
-    const grad = ctx.createLinearGradient(0, 0, 512, 256);
+    const grad = ctx.createLinearGradient(0, 0, 640, 340);
     grad.addColorStop(0, '#1e293b');
     grad.addColorStop(1, '#0f172a');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 256);
+    ctx.fillRect(0, 0, 640, 340);
 
     // Border
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(6, 6, 500, 244);
+    ctx.lineWidth = 4;
+    ctx.strokeRect(6, 6, 628, 328);
 
-    // Text in clean platinum white
-    ctx.fillStyle = '#f8fafc';
     ctx.textAlign = 'center';
 
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(award.toUpperCase(), 256, 52);
+    // 1. PLACE & AWARD TIER
+    ctx.font = 'bold 22px "Cinzel", Georgia, serif';
+    ctx.fillStyle = '#fbbf24';
+    const displayPlace = place ? place.toUpperCase() : award.toUpperCase();
+    ctx.fillText(displayPlace, 320, 52);
 
-    ctx.font = 'italic 26px serif';
+    // Title
+    ctx.font = 'italic 25px serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`"${title}"`, 256, 115);
+    ctx.fillText(`"${title}"`, 320, 102);
 
-    ctx.font = '20px sans-serif';
+    // 2. PHOTOGRAPHER NAME
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(photographer.toUpperCase(), 320, 150);
+
+    // 3. SCHOOL
+    ctx.font = '500 18px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    const schoolText = school || 'Rajapaksa Central College, Weeraketiya';
+    ctx.fillText(schoolText, 320, 192);
+
+    // Accent line
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(120, 215);
+    ctx.lineTo(520, 215);
+    ctx.stroke();
+
+    // 4. CAMERA SETTINGS & DATA
+    ctx.font = '500 15px monospace';
     ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(photographer, 256, 170);
+    const camText = cameraData || 'NIKON Z9 • 70-200mm • f/4 • 1/500s • ISO 200';
+    ctx.fillText(camText, 320, 248);
 
-    ctx.font = '14px monospace';
+    // Footer
+    ctx.font = '13px monospace';
     ctx.fillStyle = '#64748b';
-    ctx.fillText('SALON ACCEPTANCE', 256, 215);
+    ctx.fillText('CHAYAKSHA 26’ • RADAPASA MEDIA UNIT', 320, 298);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -346,6 +398,7 @@ export function createPlaqueTexture(
 
 /**
  * Creates museum wall label signage texture (Category headers, intro wall)
+ * Highlighted text with glowing bloom and completely transparent background (no liquid glass)
  */
 export function createSignageTexture(
   heading: string,
@@ -353,35 +406,54 @@ export function createSignageTexture(
   accentColor: string = '#d97706'
 ): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 300;
+  canvas.width = 1200;
+  canvas.height = 320;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.clearRect(0, 0, 1024, 300);
+  // 100% transparent background - no liquid glass plane!
+  ctx.clearRect(0, 0, 1200, 320);
 
-  // Elegant typographic banner
   ctx.textAlign = 'center';
 
-  // Accent rule line
-  ctx.fillStyle = accentColor;
-  ctx.fillRect(362, 30, 300, 3);
+  // Highlight glow effect
+  ctx.shadowColor = accentColor;
+  ctx.shadowBlur = 24;
 
-  // Main Category / Room Title
+  // Luminous Accent Top Bar
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(400, 24, 400, 4);
+
+  // Main Category / Title (Radiant Highlighted Luminous Text)
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 48px "Cinzel", Georgia, serif';
-  ctx.fillText(heading.toUpperCase(), 512, 110);
+  ctx.font = '900 58px "Cinzel", Georgia, serif';
+  ctx.fillText(heading.toUpperCase(), 600, 115);
+
+  // Extra pass for intense text highlight glow
+  ctx.shadowBlur = 12;
+  ctx.fillText(heading.toUpperCase(), 600, 115);
+
+  // Reset shadow for crisp subtext
+  ctx.shadowBlur = 0;
 
   // Subtitle
-  ctx.fillStyle = '#cbd5e1';
-  ctx.font = '300 24px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(subheading, 512, 165);
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText(subheading, 600, 175);
 
-  // Accent dot
+  // Underline highlight with accent dots
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(512, 205, 4, 0, Math.PI * 2);
-  ctx.fillStyle = accentColor;
+  ctx.moveTo(480, 215);
+  ctx.lineTo(720, 215);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(600, 215, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
   ctx.fill();
 
   const texture = new THREE.CanvasTexture(canvas);
   return texture;
 }
+

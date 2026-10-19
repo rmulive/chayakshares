@@ -35,26 +35,40 @@ export const HeaderNavbar: React.FC = () => {
   return (
     <header className="fixed top-3 inset-x-3 sm:inset-x-6 z-40 flex items-center justify-between pointer-events-none">
       {/* Brand & Salon Title */}
-      <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-2xl pointer-events-auto shadow-2xl">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-yellow-400 flex items-center justify-center shadow-lg shadow-amber-500/20">
-          <Eye size={18} className="text-slate-950 font-bold" />
+      <div className="flex items-center gap-3 glass-panel px-3.5 py-2 rounded-2xl pointer-events-auto shadow-2xl border border-amber-500/20">
+        <div className="flex items-center gap-2">
+          <img
+            src="/logos/school_crest.png"
+            alt="Rajapaksa Central College"
+            className="h-8 w-auto object-contain filter drop-shadow"
+          />
+          <img
+            src="/logos/chayaksha_logo.png"
+            alt="Chayaksha 26'"
+            className="h-7 w-auto object-contain filter drop-shadow"
+          />
+          <img
+            src="/logos/radapasa_media_unit.png"
+            alt="Radapasa Media Unit"
+            className="h-7 w-auto object-contain filter drop-shadow hidden sm:block"
+          />
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col border-l border-slate-700/60 pl-2.5">
           <div className="flex items-center gap-2">
-            <span className="font-serif font-bold text-sm tracking-widest text-slate-100">
-              CHAYAKSHA
+            <span className="font-serif font-bold text-xs sm:text-sm tracking-widest text-slate-100">
+              CHAYAKSHA 26'
             </span>
-            <span className="hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
-              2026
+            <span className="hidden lg:inline-block text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">
+              Radapasa Media Unit
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 hidden sm:block tracking-wide">
-            छाय • आक्ष | Virtual Photography Salon
+          <span className="text-[10px] text-amber-400/90 hidden sm:block tracking-wide">
+            Rajapaksa Central College, Weeraketiya
           </span>
         </div>
 
         {/* Current Wing indicator pill */}
-        <div className="hidden md:flex items-center gap-1.5 pl-3 ml-2 border-l border-slate-700/60 text-xs text-slate-300">
+        <div className="hidden md:flex items-center gap-1.5 pl-3 ml-1 border-l border-slate-700/60 text-xs text-slate-300">
           {getWingIcon(currentWing.id)}
           <span className="font-medium text-slate-200">{currentWing.name}</span>
         </div>

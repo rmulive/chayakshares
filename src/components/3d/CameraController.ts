@@ -24,8 +24,7 @@ export class CameraController {
   private minZ = 1.2;
   private maxZ = 180.0;
 
-  // Pointer Lock & Drag
-  public isPointerLocked = false;
+  // Mouse Drag state
   private isMouseDown = false;
   private lastMouseX = 0;
   private lastMouseY = 0;
@@ -79,12 +78,9 @@ export class CameraController {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
 
-    this.domElement.addEventListener('click', this.onCanvasClick);
     this.domElement.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('mouseup', this.onMouseUp);
-
-    document.addEventListener('pointerlockchange', this.onPointerLockChange);
 
     // Touch events for mobile
     this.domElement.addEventListener('touchstart', this.onTouchStart, { passive: false });
@@ -96,28 +92,14 @@ export class CameraController {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
 
-    this.domElement.removeEventListener('click', this.onCanvasClick);
     this.domElement.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
-
-    document.removeEventListener('pointerlockchange', this.onPointerLockChange);
 
     this.domElement.removeEventListener('touchstart', this.onTouchStart);
     this.domElement.removeEventListener('touchmove', this.onTouchMove);
     this.domElement.removeEventListener('touchend', this.onTouchEnd);
   }
-
-  private onPointerLockChange = () => {
-    this.isPointerLocked = document.pointerLockElement === this.domElement;
-  };
-
-  private onCanvasClick = () => {
-    const state = exhibitionStore.getState();
-    if (!state.activeModal && !state.activeArtwork && !this.isPointerLocked) {
-      this.domElement.requestPointerLock?.();
-    }
-  };
 
   private onKeyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
@@ -141,11 +123,7 @@ export class CameraController {
   };
 
   private onMouseMove = (e: MouseEvent) => {
-    if (this.isPointerLocked) {
-      const movementX = e.movementX || 0;
-      const movementY = e.movementY || 0;
-      this.rotateView(movementX * 0.002, movementY * 0.002);
-    } else if (this.isMouseDown) {
+    if (this.isMouseDown) {
       const deltaX = e.clientX - this.lastMouseX;
       const deltaY = e.clientY - this.lastMouseY;
       this.lastMouseX = e.clientX;

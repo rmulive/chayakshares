@@ -102,15 +102,19 @@ export class ArtworkMesh extends THREE.Group {
       );
     }
 
-    // --- 4. Museum Plaque underneath ---
-    const plaqueWidth = Math.min(photoWidth * 0.75, 1.2);
-    const plaqueHeight = 0.26;
+    // --- 4. Museum Plaque underneath with Name, Place, School, Camera Data ---
+    const plaqueWidth = Math.min(photoWidth * 0.82, 1.45);
+    const plaqueHeight = 0.36;
     const plaqueGeo = new THREE.PlaneGeometry(plaqueWidth, plaqueHeight);
+    const cameraStr = `${artwork.exif.camera.split(' ')[0]} • ${artwork.exif.focalLength} • ${artwork.exif.aperture} • ${artwork.exif.shutterSpeed} • ISO ${artwork.exif.iso}`;
     const plaqueTex = createPlaqueTexture(
       artwork.title,
       artwork.photographer,
       artwork.awardTier,
-      isAward
+      isAward,
+      artwork.place,
+      artwork.school,
+      cameraStr
     );
     const plaqueMat = new THREE.MeshStandardMaterial({
       map: plaqueTex,
@@ -118,7 +122,7 @@ export class ArtworkMesh extends THREE.Group {
       roughness: isAward ? 0.3 : 0.8,
     });
     const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
-    plaqueMesh.position.y = -photoHeight / 2 - frameBorder - plaqueHeight / 2 - 0.12;
+    plaqueMesh.position.y = -photoHeight / 2 - frameBorder - plaqueHeight / 2 - 0.14;
     plaqueMesh.position.z = 0.01;
     plaqueMesh.userData = { isArtwork: true, artworkId: artwork.id, artwork };
     this.interactiveObjects.push(plaqueMesh);
