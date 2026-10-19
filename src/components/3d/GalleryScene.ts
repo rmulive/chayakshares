@@ -3,6 +3,7 @@ import { CameraController } from './CameraController';
 import { ThemeManager } from './ThemeManager';
 import { GalleryCorridor } from './GalleryCorridor';
 import { ArtworkMesh } from './ArtworkMesh';
+import { AtmosphericEffects } from './AtmosphericEffects';
 import type { Artwork, GalleryTheme } from '../../types/exhibition';
 import { exhibitionStore } from '../../store/exhibitionStore';
 
@@ -14,16 +15,18 @@ export class GalleryScene {
   public controller: CameraController;
   public themeManager: ThemeManager;
   public corridor: GalleryCorridor;
+  public atmospheric: AtmosphericEffects;
 
   private ambientLight: THREE.AmbientLight;
   private dirLight: THREE.DirectionalLight;
   private artworkMeshes: Map<string, ArtworkMesh> = new Map();
   private interactiveMeshes: THREE.Object3D[] = [];
 
-  // Raycasting for mouse interactions
+  // Raycasting for mouse and center reticle interactions
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
-  private isHoveringArtwork = false;
+  public isHoveringArtwork = false;
+  public focusedArtwork: Artwork | null = null;
 
   private animFrameId: number | null = null;
   private clock = new THREE.Clock();
@@ -57,7 +60,7 @@ export class GalleryScene {
     this.scene.fog = new THREE.Fog(themeCfg.fogColor, themeCfg.fogNear, themeCfg.fogFar);
 
     // 3. Camera
-    this.camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 120);
+    this.camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 130);
 
     // 4. Lighting
     this.ambientLight = new THREE.AmbientLight(themeCfg.ambientColor, themeCfg.ambientIntensity);
@@ -71,14 +74,19 @@ export class GalleryScene {
     this.corridor = new GalleryCorridor(this.themeManager);
     this.scene.add(this.corridor);
 
-    // 6. Camera Controller
+    // 6. Atmospheric Effects (Dust Motes & Light Cones)
+    this.atmospheric = new AtmosphericEffects(this.corridor.length, this.corridor.width, this.corridor.height);
+    this.scene.add(this.atmospheric);
+
+    // 7. Camera Controller
     this.controller = new CameraController(this.camera, this.renderer.domElement);
 
-    // 7. Load Artworks
+    // 8. Load Artworks
     this.syncArtworks(exhibitionStore.getState().artworks);
 
-    // 8. Event Listeners
+    // 9. Event Listeners
     window.addEventListener('resize', this.onResize);
+    window.addEventListener('keydown', this.onGlobalKeyDown);
     this.renderer.domElement.addEventListener('click', this.onClick);
     this.renderer.domElement.addEventListener('mousemove', this.onPointerMove);
 
@@ -120,7 +128,15 @@ export class GalleryScene {
     this.renderer.setSize(width, height);
   };
 
+  private onGlobalKeyDown = (e: KeyboardEvent) => {
+    if (e.code === 'KeyE' && this.focusedArtwork) {
+      exhibitionStore.setActiveArtwork(this.focusedArtwork, true);
+    }
+  };
+
   private onPointerMove = (e: MouseEvent) => {
+    if (this.controller.isPointerLocked) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -144,10 +160,16 @@ export class GalleryScene {
 
   private onClick = (e: MouseEvent) => {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    // In pointer lock mode, raycast from dead center (0, 0)
+    if (this.controller.isPointerLocked) {
+      this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    } else {
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+    }
 
-    this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
 
     if (intersects.length > 0 && intersects[0].distance < 16) {
@@ -163,8 +185,24 @@ export class GalleryScene {
     this.animFrameId = requestAnimationFrame(this.animate);
     const delta = Math.min(this.clock.getDelta(), 0.1);
 
-    // Update camera motion
+    // Update camera motion & head bobbing
     this.controller.update(delta);
+
+    // Update atmospheric dust particles
+    this.atmospheric.update(delta);
+
+    // Center raycast for focused artwork detection
+    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
+
+    if (intersects.length > 0 && intersects[0].distance < 10) {
+      const hit = intersects[0].object;
+      if (hit.userData?.isArtwork && hit.userData.artwork) {
+        this.focusedArtwork = hit.userData.artwork as Artwork;
+      }
+    } else {
+      this.focusedArtwork = null;
+    }
 
     // Render 3D Scene
     this.renderer.render(this.scene, this.camera);
@@ -175,6 +213,7 @@ export class GalleryScene {
       cancelAnimationFrame(this.animFrameId);
     }
     window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('keydown', this.onGlobalKeyDown);
     this.renderer.domElement.removeEventListener('click', this.onClick);
     this.renderer.domElement.removeEventListener('mousemove', this.onPointerMove);
     this.controller.dispose();

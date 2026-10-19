@@ -7,7 +7,7 @@ export class GalleryCorridor extends THREE.Group {
   private themeManager: ThemeManager;
   public length = 188; // Total corridor length in meters
   public width = 12;   // Corridor width (-6m to +6m)
-  public height = 6.2; // Ceiling height
+  public height = 6.4; // Ceiling height
 
   constructor(themeManager: ThemeManager) {
     super();
@@ -16,7 +16,9 @@ export class GalleryCorridor extends THREE.Group {
 
     this.buildFloor();
     this.buildWalls();
-    this.buildCeilingAndSkylights();
+    this.buildCeilingAndLouvers();
+    this.buildGrandEntranceColonnade();
+    this.buildGalleryBenches();
     this.buildWingPortals();
     this.buildGrandEntrance();
   }
@@ -29,17 +31,35 @@ export class GalleryCorridor extends THREE.Group {
     floorMesh.receiveShadow = true;
     this.add(floorMesh);
 
-    // Subtle baseboard trims along left and right walls
-    const trimGeo = new THREE.BoxGeometry(0.12, 0.22, this.length);
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+    // Architectural baseboard trims with recessed LED accent wash
+    const trimGeo = new THREE.BoxGeometry(0.14, 0.25, this.length);
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.7 });
     
     const leftTrim = new THREE.Mesh(trimGeo, trimMat);
-    leftTrim.position.set(-this.width / 2 + 0.06, 0.11, this.length / 2);
+    leftTrim.position.set(-this.width / 2 + 0.07, 0.125, this.length / 2);
     this.add(leftTrim);
 
     const rightTrim = new THREE.Mesh(trimGeo, trimMat);
-    rightTrim.position.set(this.width / 2 - 0.06, 0.11, this.length / 2);
+    rightTrim.position.set(this.width / 2 - 0.07, 0.125, this.length / 2);
     this.add(rightTrim);
+
+    // Continuous luminous floor cove light strips (warm subtle amber glow)
+    const stripGeo = new THREE.PlaneGeometry(0.06, this.length);
+    const stripMat = new THREE.MeshBasicMaterial({
+      color: 0xf59e0b,
+      transparent: true,
+      opacity: 0.45,
+    });
+
+    const leftStrip = new THREE.Mesh(stripGeo, stripMat);
+    leftStrip.rotation.x = -Math.PI / 2;
+    leftStrip.position.set(-this.width / 2 + 0.14, 0.01, this.length / 2);
+    this.add(leftStrip);
+
+    const rightStrip = new THREE.Mesh(stripGeo, stripMat);
+    rightStrip.rotation.x = -Math.PI / 2;
+    rightStrip.position.set(this.width / 2 - 0.14, 0.01, this.length / 2);
+    this.add(rightStrip);
   }
 
   private buildWalls(): void {
@@ -78,14 +98,14 @@ export class GalleryCorridor extends THREE.Group {
     const termMat = new THREE.MeshBasicMaterial({ map: termTex, transparent: true });
     const termMesh = new THREE.Mesh(termGeo, termMat);
     termMesh.rotation.y = Math.PI;
-    termMesh.position.set(0, 3.2, this.length - 0.1);
+    termMesh.position.set(0, 3.4, this.length - 0.1);
     this.add(termMesh);
   }
 
-  private buildCeilingAndSkylights(): void {
+  private buildCeilingAndLouvers(): void {
     const ceilingMat = this.themeManager.getCeilingMaterial();
 
-    // Main ceiling
+    // Main ceiling plane
     const ceilingGeo = new THREE.PlaneGeometry(this.width, this.length);
     const ceilingMesh = new THREE.Mesh(ceilingGeo, ceilingMat);
     ceilingMesh.rotation.x = Math.PI / 2;
@@ -93,7 +113,7 @@ export class GalleryCorridor extends THREE.Group {
     this.add(ceilingMesh);
 
     // Central architectural recessed skylight / lighting cove
-    const lightStripGeo = new THREE.PlaneGeometry(1.6, this.length);
+    const lightStripGeo = new THREE.PlaneGeometry(1.8, this.length);
     const lightStripMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
@@ -104,12 +124,115 @@ export class GalleryCorridor extends THREE.Group {
     lightStrip.position.set(0, this.height - 0.05, this.length / 2);
     this.add(lightStrip);
 
-    // Soft architectural downlights spaced periodically down the hallway
-    for (let z = 10; z < this.length; z += 16) {
-      const downLight = new THREE.PointLight(0xfff8eb, 2.5, 14, 1.8);
-      downLight.position.set(0, this.height - 0.3, z);
+    // Architectural transverse ceiling cross-beams and wooden louvers
+    const beamGeo = new THREE.BoxGeometry(this.width, 0.35, 0.4);
+    const beamMat = new THREE.MeshStandardMaterial({
+      color: 0x111827,
+      roughness: 0.6,
+      metalness: 0.2,
+    });
+
+    for (let z = 6; z < this.length; z += 12) {
+      const beam = new THREE.Mesh(beamGeo, beamMat);
+      beam.position.set(0, this.height - 0.18, z);
+      this.add(beam);
+
+      // Downlight spot underneath each cross-beam
+      const downLight = new THREE.PointLight(0xfff8eb, 2.8, 15, 1.8);
+      downLight.position.set(0, this.height - 0.45, z);
       this.add(downLight);
     }
+  }
+
+  /**
+   * Architectural Colonnade flanking the Grand Entrance Foyer
+   */
+  private buildGrandEntranceColonnade(): void {
+    const colMat = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      roughness: 0.25,
+      metalness: 0.15,
+    });
+
+    const colGeo = new THREE.CylinderGeometry(0.35, 0.4, this.height, 24);
+    const plinthGeo = new THREE.BoxGeometry(0.9, 0.3, 0.9);
+
+    // Column positions in the Grand Foyer (Z = 5, 10, 15)
+    [5, 10, 15].forEach((z) => {
+      // Left Colonnade (X = -3.8)
+      const leftCol = new THREE.Mesh(colGeo, colMat);
+      leftCol.position.set(-3.8, this.height / 2, z);
+      leftCol.castShadow = true;
+      this.add(leftCol);
+
+      const leftPlinth = new THREE.Mesh(plinthGeo, colMat);
+      leftPlinth.position.set(-3.8, 0.15, z);
+      this.add(leftPlinth);
+
+      // Right Colonnade (X = +3.8)
+      const rightCol = new THREE.Mesh(colGeo, colMat);
+      rightCol.position.set(3.8, this.height / 2, z);
+      rightCol.castShadow = true;
+      this.add(rightCol);
+
+      const rightPlinth = new THREE.Mesh(plinthGeo, colMat);
+      rightPlinth.position.set(3.8, 0.15, z);
+      this.add(rightPlinth);
+    });
+  }
+
+  /**
+   * Minimalist Architectural Gallery Benches placed in resting areas
+   */
+  private buildGalleryBenches(): void {
+    const benchPositions = [12, 32, 58, 86, 114, 142, 170];
+
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: 0x1c1917,
+      roughness: 0.35,
+      metalness: 0.1,
+    });
+    const cushionMat = new THREE.MeshStandardMaterial({
+      color: 0x27272a,
+      roughness: 0.85,
+    });
+    const legMat = new THREE.MeshStandardMaterial({
+      color: 0x09090b,
+      metalness: 0.9,
+      roughness: 0.2,
+    });
+
+    const benchBaseGeo = new THREE.BoxGeometry(2.4, 0.1, 0.7);
+    const cushionGeo = new THREE.BoxGeometry(2.2, 0.12, 0.6);
+    const legGeo = new THREE.BoxGeometry(0.08, 0.35, 0.65);
+
+    benchPositions.forEach((z) => {
+      const benchGroup = new THREE.Group();
+      benchGroup.position.set(0, 0, z);
+
+      // Base slab
+      const base = new THREE.Mesh(benchBaseGeo, woodMat);
+      base.position.y = 0.38;
+      base.castShadow = true;
+      benchGroup.add(base);
+
+      // Cushion top
+      const cushion = new THREE.Mesh(cushionGeo, cushionMat);
+      cushion.position.y = 0.48;
+      cushion.castShadow = true;
+      benchGroup.add(cushion);
+
+      // Legs
+      const leftLeg = new THREE.Mesh(legGeo, legMat);
+      leftLeg.position.set(-0.9, 0.175, 0);
+      benchGroup.add(leftLeg);
+
+      const rightLeg = new THREE.Mesh(legGeo, legMat);
+      rightLeg.position.set(0.9, 0.175, 0);
+      benchGroup.add(rightLeg);
+
+      this.add(benchGroup);
+    });
   }
 
   private buildWingPortals(): void {
@@ -174,17 +297,13 @@ export class GalleryCorridor extends THREE.Group {
     entranceBanner.position.set(0, 4.8, 1.0);
     this.add(entranceBanner);
 
-    // Warm welcoming foyer lights
-    const foyerLightL = new THREE.PointLight(0xfbbf24, 6, 12, 1.6);
-    foyerLightL.position.set(-3.5, 4.0, 5.0);
+    // Warm welcoming foyer spotlights
+    const foyerLightL = new THREE.PointLight(0xfbbf24, 7, 14, 1.6);
+    foyerLightL.position.set(-3.5, 4.5, 5.0);
     this.add(foyerLightL);
 
-    const foyerLightR = new THREE.PointLight(0xfbbf24, 6, 12, 1.6);
-    foyerLightR.position.set(3.5, 4.0, 5.0);
+    const foyerLightR = new THREE.PointLight(0xfbbf24, 7, 14, 1.6);
+    foyerLightR.position.set(3.5, 4.5, 5.0);
     this.add(foyerLightR);
-  }
-
-  public updateMaterials(): void {
-    // Traverse and update materials when theme changes
   }
 }
