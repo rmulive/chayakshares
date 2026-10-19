@@ -18,7 +18,7 @@ interface ExhibitionState {
   isInspecting: boolean;
 }
 
-const STORAGE_KEY_ARTWORKS = 'chayaksha_artworks_v1';
+const STORAGE_KEY_ARTWORKS = 'chayaksha_artworks_v2';
 const STORAGE_KEY_GUESTBOOK = 'chayaksha_guestbook_v1';
 const STORAGE_KEY_THEME = 'chayaksha_theme_v1';
 

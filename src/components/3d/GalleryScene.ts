@@ -182,7 +182,9 @@ export class GalleryScene {
     this.lastTime = now;
 
     // Update camera motion & head bobbing
-    this.controller.update(delta);
+    if (this.controller) {
+      this.controller.update(delta);
+    }
 
     // Center raycast for focused artwork detection
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
