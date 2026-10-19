@@ -4,7 +4,7 @@ import {
   Map,
   Search,
   BookOpen,
-  Sliders,
+  ExternalLink,
   Info,
   Sparkles,
   Trophy,
@@ -135,19 +135,19 @@ export const HeaderNavbar: React.FC = () => {
           <span className="hidden sm:inline">Guestbook</span>
         </button>
 
-        {/* Curator Studio Drawer */}
-        <button
-          onClick={() => exhibitionStore.setActiveModal(activeModal === 'curator' ? null : 'curator')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border ${
-            activeModal === 'curator'
-              ? 'bg-amber-500 text-slate-950 border-amber-400 font-semibold shadow-lg shadow-amber-500/25'
-              : 'text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20'
-          }`}
-          title="Curator Administration Suite"
-        >
-          <Sliders size={15} />
-          <span className="hidden md:inline">Curator Portal</span>
-        </button>
+        {/* IAAP Results Page Link */}
+        {salonInfo.iaapResultsUrl && (
+          <a
+            href={salonInfo.iaapResultsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-all shadow cursor-pointer"
+            title="Official IAAP Salon Results Page"
+          >
+            <ExternalLink size={14} />
+            <span className="hidden md:inline">IAAP Results</span>
+          </a>
+        )}
 
         {/* Salon Info */}
         <button

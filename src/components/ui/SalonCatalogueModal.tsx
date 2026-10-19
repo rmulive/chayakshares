@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Trophy, Eye, ExternalLink, School, Camera, FileDown } from 'lucide-react';
+import { X, Search, Trophy, Eye, ExternalLink, School, FileDown } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../../store/exhibitionStore';
 import type { Artwork } from '../../types/exhibition';
 
@@ -33,9 +33,9 @@ export const SalonCatalogueModal: React.FC = () => {
         const matchesArtist = art.photographer.toLowerCase().includes(query);
         const matchesSchool = art.school ? art.school.toLowerCase().includes(query) : false;
         const matchesPlace = art.place ? art.place.toLowerCase().includes(query) : false;
-        const matchesCountry = art.country.toLowerCase().includes(query);
-        const matchesCamera = art.exif.camera.toLowerCase().includes(query);
-        const matchesDesc = art.description.toLowerCase().includes(query);
+        const matchesCountry = art.country ? art.country.toLowerCase().includes(query) : false;
+        const matchesCamera = art.exif?.camera ? art.exif.camera.toLowerCase().includes(query) : false;
+        const matchesDesc = art.description ? art.description.toLowerCase().includes(query) : false;
         return matchesTitle || matchesArtist || matchesSchool || matchesPlace || matchesCountry || matchesCamera || matchesDesc;
       }
 
@@ -71,6 +71,18 @@ export const SalonCatalogueModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            {salonInfo.iaapResultsUrl && (
+              <a
+                href={salonInfo.iaapResultsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 text-cyan-300 text-xs font-bold flex items-center gap-1.5 border border-cyan-500/30 transition-all cursor-pointer"
+                title="Open official IAAP Salon Results"
+              >
+                <ExternalLink size={13} />
+                IAAP Results
+              </a>
+            )}
             {salonInfo.catalogPdfUrl && (
               <a
                 href={salonInfo.catalogPdfUrl}
@@ -246,13 +258,10 @@ export const SalonCatalogueModal: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Camera Settings & EXIF data */}
+                  {/* Section & Institution footer (no camera data) */}
                   <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                    <span className="flex items-center gap-1 truncate max-w-[70%]">
-                      <Camera size={11} className="text-amber-400 shrink-0" />
-                      <span className="truncate">{art.exif.camera.split(' ')[0]} • {art.exif.aperture} • {art.exif.shutterSpeed}</span>
-                    </span>
-                    <span className="shrink-0">ISO {art.exif.iso}</span>
+                    <span className="truncate text-amber-300/80 font-serif">Chayaksha 26'</span>
+                    <span className="truncate text-slate-500 font-sans">RMU Live</span>
                   </div>
                 </div>
               </div>

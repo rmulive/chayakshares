@@ -261,39 +261,41 @@ export const ArchivalViewerModal: React.FC = () => {
             )}
           </div>
 
-          {/* Technical Camera EXIF Grid */}
-          <div className="py-3">
-            <h5 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Camera size={13} /> Technical EXIF Capture
-            </h5>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                <span className="text-slate-400 block text-[10px]">Camera</span>
-                <span className="text-slate-200 font-medium truncate block">{activeArtwork.exif.camera}</span>
+          {/* Technical Camera EXIF Grid (if provided) */}
+          {activeArtwork.exif && activeArtwork.exif.camera && (
+            <div className="py-3">
+              <h5 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Camera size={13} /> Technical EXIF Capture
+              </h5>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                  <span className="text-slate-400 block text-[10px]">Camera</span>
+                  <span className="text-slate-200 font-medium truncate block">{activeArtwork.exif.camera}</span>
+                </div>
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                  <span className="text-slate-400 block text-[10px]">Lens</span>
+                  <span className="text-slate-200 font-medium truncate block">{activeArtwork.exif.lens || 'Prime Lens'}</span>
+                </div>
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                  <span className="text-slate-400 block text-[10px]">Exposure</span>
+                  <span className="text-slate-200 font-mono font-medium">{activeArtwork.exif.aperture || 'f/2.8'} • {activeArtwork.exif.shutterSpeed || '1/500s'}</span>
+                </div>
+                <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                  <span className="text-slate-400 block text-[10px]">Sensitivity & Focal</span>
+                  <span className="text-slate-200 font-mono font-medium">ISO {activeArtwork.exif.iso || '100'} • {activeArtwork.exif.focalLength || '50mm'}</span>
+                </div>
               </div>
-              <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                <span className="text-slate-400 block text-[10px]">Lens</span>
-                <span className="text-slate-200 font-medium truncate block">{activeArtwork.exif.lens}</span>
-              </div>
-              <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                <span className="text-slate-400 block text-[10px]">Exposure</span>
-                <span className="text-slate-200 font-mono font-medium">{activeArtwork.exif.aperture} • {activeArtwork.exif.shutterSpeed}</span>
-              </div>
-              <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                <span className="text-slate-400 block text-[10px]">Sensitivity & Focal</span>
-                <span className="text-slate-200 font-mono font-medium">ISO {activeArtwork.exif.iso} • {activeArtwork.exif.focalLength}</span>
-              </div>
-            </div>
 
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 pt-1">
-              <span className="flex items-center gap-1">
-                <MapPin size={12} className="text-amber-400" /> {activeArtwork.exif.location}
-              </span>
-              <span className="flex items-center gap-1 font-mono">
-                <Calendar size={12} /> {activeArtwork.exif.year}
-              </span>
+              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                <span className="flex items-center gap-1">
+                  <MapPin size={12} className="text-amber-400" /> {activeArtwork.exif.location || 'Sri Lanka'}
+                </span>
+                <span className="flex items-center gap-1 font-mono">
+                  <Calendar size={12} /> {activeArtwork.exif.year || 2026}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Action button */}
           <button

@@ -1,4 +1,12 @@
-import type { Artwork, CategoryWing, GuestbookEntry, SalonInfo, AwardDefinition } from '../types/exhibition';
+import type { Artwork, CategoryWing, GuestbookEntry, SalonInfo, AwardDefinition, SectionAward } from '../types/exhibition';
+
+export const DEFAULT_SECTION_AWARDS: SectionAward[] = [
+  { id: 'sec-1st', name: '1st Place - Gold Award', spotlightColorHex: '#ffd700', plaqueStyle: 'gold', medalType: 'gold' },
+  { id: 'sec-2nd', name: '2nd Place - Silver Award', spotlightColorHex: '#e0e7ff', plaqueStyle: 'silver', medalType: 'silver' },
+  { id: 'sec-3rd', name: '3rd Place - Bronze Award', spotlightColorHex: '#f59e0b', plaqueStyle: 'bronze', medalType: 'bronze' },
+  { id: 'sec-merit', name: 'Merit Award', spotlightColorHex: '#fef08a', plaqueStyle: 'gold', medalType: 'ribbon' },
+  { id: 'sec-acc', name: 'Salon Acceptance', spotlightColorHex: '#f8fafc', plaqueStyle: 'slate', medalType: 'acceptance' },
+];
 
 export const INITIAL_AWARDS: AwardDefinition[] = [
   {
@@ -73,12 +81,15 @@ export const SALON_INFO: SalonInfo = {
   year: 2026,
   organizedBy: 'Media Unit of Rajapaksa Central College (RMU Live)',
   school: 'Rajapaksa Central College, Weeraketiya',
-  officialUrl: 'chayaksha.rmulive.com',
-  patronages: {
-    iaap: 'IAAP: 2026/503',
-    fiap: 'FIAP 2026/184',
-    psa: 'PSA 2026-412',
-  },
+  officialUrl: 'https://chayaksha.rmulive.com',
+  iaapResultsUrl: 'https://chayaksha.rmulive.com/results',
+  patronageList: [
+    {
+      id: 'pat-iaap',
+      organization: 'IAAP',
+      patronageNumber: '2026/503',
+    },
+  ],
   totalSubmissions: 6420,
   acceptedCount: 384,
   countriesRepresented: 58,
@@ -90,6 +101,7 @@ export const SALON_INFO: SalonInfo = {
       country: 'Slovakia',
       honors: 'M IAAP, EFIAP/S, MZSF, E PIPC',
       role: 'International Jury Chairperson',
+      imageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80',
     },
     {
       id: 'judge-2',
@@ -97,6 +109,7 @@ export const SALON_INFO: SalonInfo = {
       country: 'Turkiye',
       honors: 'E IAAP, EFIAP/B, PPSA, GPU CR 2 - SUPREMECOSDIAMOND',
       role: 'International Jury Member',
+      imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
     },
     {
       id: 'judge-3',
@@ -104,6 +117,7 @@ export const SALON_INFO: SalonInfo = {
       country: 'United Kingdom',
       honors: 'E IAAP, NFIAP, C.FPC, CJIAAP',
       role: 'International Jury Member',
+      imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
     },
   ],
 };
@@ -117,6 +131,7 @@ export const CATEGORY_WINGS: CategoryWing[] = [
     colorHex: '#d97706',
     zStart: 0,
     zEnd: 16,
+    awards: [...DEFAULT_SECTION_AWARDS],
   },
   {
     id: 'awards',
@@ -126,6 +141,7 @@ export const CATEGORY_WINGS: CategoryWing[] = [
     colorHex: '#eab308',
     zStart: 16,
     zEnd: 44,
+    awards: [...DEFAULT_SECTION_AWARDS],
   },
   {
     id: 'monochrome',
@@ -135,6 +151,7 @@ export const CATEGORY_WINGS: CategoryWing[] = [
     colorHex: '#94a3b8',
     zStart: 44,
     zEnd: 72,
+    awards: [...DEFAULT_SECTION_AWARDS],
   },
   {
     id: 'nature',
@@ -144,6 +161,7 @@ export const CATEGORY_WINGS: CategoryWing[] = [
     colorHex: '#10b981',
     zStart: 72,
     zEnd: 100,
+    awards: [...DEFAULT_SECTION_AWARDS],
   },
   {
     id: 'street',
@@ -153,6 +171,7 @@ export const CATEGORY_WINGS: CategoryWing[] = [
     colorHex: '#f97316',
     zStart: 100,
     zEnd: 128,
+    awards: [...DEFAULT_SECTION_AWARDS],
   },
   {
     id: 'architecture',
@@ -162,6 +181,7 @@ export const CATEGORY_WINGS: CategoryWing[] = [
     colorHex: '#06b6d4',
     zStart: 128,
     zEnd: 156,
+    awards: [...DEFAULT_SECTION_AWARDS],
   },
   {
     id: 'creative',
@@ -171,6 +191,7 @@ export const CATEGORY_WINGS: CategoryWing[] = [
     colorHex: '#8b5cf6',
     zStart: 156,
     zEnd: 184,
+    awards: [...DEFAULT_SECTION_AWARDS],
   },
 ];
 

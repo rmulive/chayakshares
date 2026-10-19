@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Award, ShieldCheck, Users, Globe, FileDown, CheckCircle2 } from 'lucide-react';
+import { X, Users, Globe, FileDown, ExternalLink, Eye, ShieldCheck } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../../store/exhibitionStore';
 
 export const SalonInfoModal: React.FC = () => {
@@ -51,60 +51,67 @@ export const SalonInfoModal: React.FC = () => {
             Rooted in classical Sanskrit, <span className="text-poster-gold font-semibold">Chayaksha</span> brings together <em>Chaya</em> (छाय — Shadow/Form) and <em>Aaksha</em> (आक्ष — Vision/Eye). It represents the timeless interplay between photon and perception, celebrating the photographic art in its highest architectural sanctuary.
           </p>
           <p className="text-slate-400">
-            Conducted strictly in compliance with international salon guidelines, Chayaksha features juried acceptances and premier medalists across dedicated gallery wings, accessible worldwide via real-time 3D WebGL rendering.
+            Conducted in compliance with international salon standards, Chayaksha features juried acceptances and premier medalists across dedicated gallery wings, accessible worldwide via real-time 3D WebGL rendering.
           </p>
         </div>
 
-        {/* Patronage Cards: FIAP, PSA, IAAP */}
-        <div className="my-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* FIAP */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800 flex flex-col justify-between">
-            <div className="flex items-start gap-2.5">
-              <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                <ShieldCheck size={18} />
-              </div>
-              <div>
-                <h4 className="font-serif font-bold text-xs text-white">FIAP Patronage</h4>
-                <p className="text-[11px] text-slate-400">Fédération Internationale de l’Art Photographique</p>
-              </div>
-            </div>
-            <span className="mt-3 font-mono text-[11px] text-amber-400 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-center font-bold">
-              {salonInfo.patronages.fiap}
-            </span>
+        {/* Quick Action Navigation Buttons: Visit Exhibition, Download Catalog, IAAP Results Page */}
+        <div className="my-2 p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900/80 to-slate-900/80 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exhibitionStore.setActiveModal(null)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer transition-all"
+            >
+              <Eye size={15} />
+              Visit Exhibition in 3D
+            </button>
+
+            {salonInfo.catalogPdfUrl && (
+              <a
+                href={salonInfo.catalogPdfUrl}
+                download={salonInfo.catalogPdfName || 'Chayaksha_26_Exhibition_Catalogue.pdf'}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white border border-amber-500/30 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <FileDown size={14} />
+                Download Catalog PDF
+              </a>
+            )}
           </div>
 
-          {/* PSA */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800 flex flex-col justify-between">
-            <div className="flex items-start gap-2.5">
-              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                <Award size={18} />
-              </div>
-              <div>
-                <h4 className="font-serif font-bold text-xs text-white">PSA Recognition</h4>
-                <p className="text-[11px] text-slate-400">Photographic Society of America</p>
-              </div>
-            </div>
-            <span className="mt-3 font-mono text-[11px] text-amber-400 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-center font-bold">
-              {salonInfo.patronages.psa}
-            </span>
-          </div>
-
-          {/* IAAP */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800 flex flex-col justify-between">
-            <div className="flex items-start gap-2.5">
-              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                <CheckCircle2 size={18} />
-              </div>
-              <div>
-                <h4 className="font-serif font-bold text-xs text-white">IAAP Patronage</h4>
-                <p className="text-[11px] text-slate-400">International Association of Art Photographers</p>
-              </div>
-            </div>
-            <span className="mt-3 font-mono text-[11px] text-emerald-400 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-center font-bold">
-              {salonInfo.patronages.iaap || 'IAAP: 2026/503'}
-            </span>
-          </div>
+          {salonInfo.iaapResultsUrl && (
+            <a
+              href={salonInfo.iaapResultsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 hover:text-white border border-cyan-500/30 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <ExternalLink size={14} />
+              IAAP Results Page
+            </a>
+          )}
         </div>
+
+        {/* Dynamic Patronages (Configured from Admin Panel, No Hardcoded Numbers) */}
+        {salonInfo.patronageList && salonInfo.patronageList.length > 0 && (
+          <div className="my-3">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 block mb-2">
+              Official Patronages & Recognitions
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {salonInfo.patronageList.map(pat => (
+                <div key={pat.id} className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-serif font-bold text-xs text-white">{pat.organization} Patronage</h4>
+                    <span className="font-mono text-xs text-amber-300 font-bold block">{pat.patronageNumber}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* International Salon Statistics */}
         <div className="my-3 p-4 rounded-2xl bg-slate-950/70 border border-slate-800 grid grid-cols-3 gap-2 text-center">
@@ -128,54 +135,47 @@ export const SalonInfoModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Official Website & Catalog PDF */}
-        <div className="my-2 p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/30 via-slate-900/60 to-slate-900/60 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
-              <Globe size={18} />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-white block">Official Salon Portal</span>
-              <a
-                href={salonInfo.officialUrl || 'https://chayaksha.rmulive.com'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-mono text-amber-300 hover:underline flex items-center gap-1"
-              >
-                {salonInfo.officialUrl?.replace('https://', '') || 'chayaksha.rmulive.com'}
-              </a>
-            </div>
+        {/* Official Website */}
+        <div className="my-2 p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <Globe size={16} className="text-amber-400" />
+            <span className="text-slate-300">Official Salon Portal:</span>
           </div>
-
-          {salonInfo.catalogPdfUrl && (
-            <a
-              href={salonInfo.catalogPdfUrl}
-              download={salonInfo.catalogPdfName || 'Chayaksha_26_Exhibition_Catalogue.pdf'}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all shrink-0 cursor-pointer"
-            >
-              <FileDown size={15} />
-              Download Exhibition Catalog PDF
-            </a>
-          )}
+          <a
+            href={salonInfo.officialUrl || 'https://chayaksha.rmulive.com'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-amber-300 hover:underline flex items-center gap-1"
+          >
+            {salonInfo.officialUrl?.replace('https://', '') || 'chayaksha.rmulive.com'}
+            <ExternalLink size={12} />
+          </a>
         </div>
 
-        {/* Panel of Judges */}
+        {/* Panel of Judges with Images */}
         <div className="pt-4 border-t border-slate-800/80 mt-2">
           <h4 className="font-serif text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <Users size={14} className="text-amber-400" /> International Panel of Judges
           </h4>
 
           {salonInfo.judges && salonInfo.judges.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {salonInfo.judges.map(judge => (
-                <div key={judge.id} className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col justify-between">
-                  <div>
-                    <h5 className="font-serif text-xs font-bold text-amber-200">{judge.name}</h5>
-                    <p className="text-[11px] text-amber-400/90 font-mono mt-0.5">{judge.honors}</p>
+                <div key={judge.id} className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col justify-between">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <img
+                      src={judge.imageUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80'}
+                      alt={judge.name}
+                      className="w-10 h-10 rounded-full object-cover border border-amber-400/40 shadow"
+                    />
+                    <div>
+                      <h5 className="font-serif text-xs font-bold text-amber-200">{judge.name}</h5>
+                      <span className="text-[10px] text-slate-400">{judge.country}</span>
+                    </div>
                   </div>
-                  <div className="mt-2 pt-1.5 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
-                    <span>{judge.country}</span>
-                    <span className="text-slate-500 italic">{judge.role}</span>
+                  <div>
+                    <p className="text-[10px] text-amber-400/90 font-mono">{judge.honors}</p>
+                    <p className="text-[10px] text-slate-500 italic mt-0.5">{judge.role}</p>
                   </div>
                 </div>
               ))}
@@ -190,4 +190,3 @@ export const SalonInfoModal: React.FC = () => {
     </div>
   );
 };
-

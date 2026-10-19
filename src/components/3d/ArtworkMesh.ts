@@ -9,6 +9,9 @@ const loadedTextures = new Map<string, THREE.Texture>();
 export class ArtworkMesh extends THREE.Group {
   public artwork: Artwork;
   public photoMesh: THREE.Mesh;
+  public frameMesh: THREE.Mesh;
+  public matMesh: THREE.Mesh;
+  public plaqueMesh: THREE.Mesh;
   public spotLight: THREE.SpotLight;
   public interactiveObjects: THREE.Object3D[] = [];
 
@@ -20,12 +23,16 @@ export class ArtworkMesh extends THREE.Group {
     const isAward = artwork.awardTier !== 'Salon Acceptance';
     const isHero = !!artwork.isHero;
 
-    // Size dimensions
+    // Initial size dimensions based on ratio
+    const initialRatio = artwork.aspectRatio || 1.5;
     let photoWidth = 2.4;
-    let photoHeight = photoWidth / (artwork.aspectRatio || 1.5);
+    let photoHeight = photoWidth / initialRatio;
     if (isHero) {
       photoWidth = 5.2;
-      photoHeight = photoWidth / (artwork.aspectRatio || 2.2);
+      photoHeight = Math.min(photoWidth / initialRatio, 3.2);
+    } else if (initialRatio < 0.85) {
+      photoHeight = 1.95;
+      photoWidth = photoHeight * initialRatio;
     }
 
     const frameBorder = isHero ? 0.12 : 0.08;
@@ -42,10 +49,10 @@ export class ArtworkMesh extends THREE.Group {
       metalness: isAward ? 0.8 : 0.2,
       roughness: isAward ? 0.25 : 0.7,
     });
-    const frameMesh = new THREE.Mesh(frameGeo, frameMat);
-    frameMesh.position.z = -frameDepth / 2;
-    frameMesh.castShadow = true;
-    this.add(frameMesh);
+    this.frameMesh = new THREE.Mesh(frameGeo, frameMat);
+    this.frameMesh.position.z = -frameDepth / 2;
+    this.frameMesh.castShadow = true;
+    this.add(this.frameMesh);
 
     // --- 2. Inner Museum Matting (Passe-partout) ---
     const matBorder = isHero ? 0.06 : 0.05;
@@ -58,9 +65,9 @@ export class ArtworkMesh extends THREE.Group {
       roughness: 0.95,
       metalness: 0.0,
     });
-    const matMesh = new THREE.Mesh(matGeo, matMaterial);
-    matMesh.position.z = 0.005;
-    this.add(matMesh);
+    this.matMesh = new THREE.Mesh(matGeo, matMaterial);
+    this.matMesh.position.z = 0.005;
+    this.add(this.matMesh);
 
     // --- 3. Photograph Canvas Plane ---
     const photoGeo = new THREE.PlaneGeometry(photoWidth, photoHeight);
@@ -80,9 +87,14 @@ export class ArtworkMesh extends THREE.Group {
 
     // Load actual high-resolution texture
     if (loadedTextures.has(artwork.imageUrl)) {
-      photoMat.map = loadedTextures.get(artwork.imageUrl)!;
+      const tex = loadedTextures.get(artwork.imageUrl)!;
+      photoMat.map = tex;
       photoMat.color.setHex(0xffffff);
       photoMat.needsUpdate = true;
+      const img = tex.image as HTMLImageElement | undefined;
+      if (img && img.width && img.height) {
+        this.updateFrameRatio(img.width / img.height);
+      }
     } else {
       textureLoader.load(
         artwork.imageUrl,
@@ -94,6 +106,10 @@ export class ArtworkMesh extends THREE.Group {
           photoMat.map = tex;
           photoMat.color.setHex(0xffffff);
           photoMat.needsUpdate = true;
+          const img = tex.image as HTMLImageElement | undefined;
+          if (img && img.width && img.height) {
+            this.updateFrameRatio(img.width / img.height);
+          }
         },
         undefined,
         (err) => {
@@ -102,32 +118,29 @@ export class ArtworkMesh extends THREE.Group {
       );
     }
 
-    // --- 4. Museum Plaque underneath with Photo Title, Name, Place, School, Camera Data ---
-    // Board size is up for the more prominent visibility per user request
+    // --- 4. Museum Plaque underneath with Photo Title, Name, Place, School (No camera data) ---
     const plaqueWidth = Math.max(Math.min(photoWidth * 0.96, 2.5), 1.95);
     const plaqueHeight = 0.58;
     const plaqueGeo = new THREE.PlaneGeometry(plaqueWidth, plaqueHeight);
-    const cameraStr = `${artwork.exif.camera.split(' ')[0]} • ${artwork.exif.focalLength} • ${artwork.exif.aperture} • ${artwork.exif.shutterSpeed} • ISO ${artwork.exif.iso}`;
     const plaqueTex = createPlaqueTexture(
       artwork.title,
       artwork.photographer,
       artwork.awardTier,
       isAward,
       artwork.place,
-      artwork.school,
-      cameraStr
+      artwork.school
     );
     const plaqueMat = new THREE.MeshStandardMaterial({
       map: plaqueTex,
       metalness: isAward ? 0.75 : 0.2,
       roughness: isAward ? 0.25 : 0.8,
     });
-    const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
-    plaqueMesh.position.y = -photoHeight / 2 - frameBorder - plaqueHeight / 2 - 0.12;
-    plaqueMesh.position.z = 0.01;
-    plaqueMesh.userData = { isArtwork: true, artworkId: artwork.id, artwork };
-    this.interactiveObjects.push(plaqueMesh);
-    this.add(plaqueMesh);
+    this.plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
+    this.plaqueMesh.position.y = -photoHeight / 2 - frameBorder - plaqueHeight / 2 - 0.12;
+    this.plaqueMesh.position.z = 0.01;
+    this.plaqueMesh.userData = { isArtwork: true, artworkId: artwork.id, artwork };
+    this.interactiveObjects.push(this.plaqueMesh);
+    this.add(this.plaqueMesh);
 
     // --- 5. Dedicated Ceiling Spotlight with Dynamic Award Colors (Gold, Silver, Bronze, White) ---
     const awardLower = `${artwork.place || ''} ${artwork.awardTier || ''}`.toLowerCase();
@@ -175,12 +188,77 @@ export class ArtworkMesh extends THREE.Group {
     }
   }
 
+  /**
+   * Dynamically adjusts the 3D photo, matting, frame, and plaque position
+   * to strictly match the photograph's natural aspect ratio (landscape, portrait, square, etc.)
+   */
+  public updateFrameRatio(ratio: number): void {
+    if (!ratio || isNaN(ratio) || ratio <= 0) return;
+    this.artwork.aspectRatio = ratio;
+
+    const isHero = !!this.artwork.isHero;
+    let width: number;
+    let height: number;
+
+    if (isHero) {
+      if (ratio >= 1) {
+        width = 5.2;
+        height = Math.min(width / ratio, 3.2);
+      } else {
+        height = 3.2;
+        width = height * ratio;
+      }
+    } else {
+      if (ratio >= 1.2) {
+        // Landscape (e.g. 3:2, 16:9, panoramic)
+        width = 2.4;
+        height = width / ratio;
+      } else if (ratio < 0.85) {
+        // Portrait (e.g. 2:3, 4:5)
+        height = 1.95;
+        width = height * ratio;
+      } else {
+        // Square or standard near-square (1:1, 4:3)
+        width = 2.0;
+        height = width / ratio;
+      }
+    }
+
+    const frameBorder = isHero ? 0.12 : 0.08;
+    const frameDepth = 0.08;
+    const matBorder = isHero ? 0.06 : 0.05;
+    const plaqueHeight = 0.58;
+
+    // Recreate geometries
+    if (this.photoMesh) {
+      this.photoMesh.geometry.dispose();
+      this.photoMesh.geometry = new THREE.PlaneGeometry(width, height);
+    }
+
+    if (this.matMesh) {
+      this.matMesh.geometry.dispose();
+      this.matMesh.geometry = new THREE.PlaneGeometry(width + matBorder * 2, height + matBorder * 2);
+    }
+
+    if (this.frameMesh) {
+      this.frameMesh.geometry.dispose();
+      this.frameMesh.geometry = new THREE.BoxGeometry(
+        width + frameBorder * 2,
+        height + frameBorder * 2,
+        frameDepth
+      );
+    }
+
+    if (this.plaqueMesh) {
+      this.plaqueMesh.position.y = -height / 2 - frameBorder - plaqueHeight / 2 - 0.12;
+    }
+  }
+
   public updateThemeFrame(frameColor: number): void {
     const isAward = this.artwork.awardTier !== 'Salon Acceptance';
     if (!isAward) {
-      const frameMesh = this.children[0] as THREE.Mesh;
-      if (frameMesh && frameMesh.material instanceof THREE.MeshStandardMaterial) {
-        frameMesh.material.color.setHex(frameColor);
+      if (this.frameMesh && this.frameMesh.material instanceof THREE.MeshStandardMaterial) {
+        this.frameMesh.material.color.setHex(frameColor);
       }
     }
   }

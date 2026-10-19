@@ -6,7 +6,8 @@ export type AwardTier =
   | 'PSA Bronze'
   | 'FIAP Ribbon'
   | 'Honorable Mention'
-  | 'Salon Acceptance';
+  | 'Salon Acceptance'
+  | string;
 
 export type GalleryTheme = 
   | 'minimalist-alabaster'
@@ -15,38 +16,45 @@ export type GalleryTheme =
   | 'brutalist-concrete';
 
 export interface ArtworkEXIF {
-  camera: string;
-  lens: string;
-  focalLength: string;
-  aperture: string;
-  shutterSpeed: string;
-  iso: string;
-  location: string;
-  year: number;
+  camera?: string;
+  lens?: string;
+  focalLength?: string;
+  aperture?: string;
+  shutterSpeed?: string;
+  iso?: string;
+  location?: string;
+  year?: number;
 }
 
 export interface Artwork {
   id: string;
   title: string;
   photographer: string;
-  photographerHonors?: string; // e.g. "EFIAP/d3, MPSA"
-  school?: string;             // School / Institution (e.g. "Rajapaksa Central College, Weeraketiya")
-  place?: string;              // Specific award ranking (e.g. "1st Place - Gold Award", "2nd Place", "Best of Show")
-  country: string;
-  countryCode: string;
+  photographerHonors?: string;
+  school?: string;             // School / Institution
+  place?: string;              // Specific award ranking (e.g. "1st Place - Gold Award")
+  country?: string;
+  countryCode?: string;
   category: string;
   awardTier: AwardTier;
   imageUrl: string;
   thumbnailUrl?: string;
-  aspectRatio: number; // width / height
-  description: string;
+  aspectRatio: number; // width / height, dynamically adjusted!
+  description?: string;
   curatorNote?: string;
-  exif: ArtworkEXIF;
+  exif?: ArtworkEXIF; // Camera data is optional
   isHero?: boolean;
-  // Spatial coordinates in 3D world (calculated or assigned)
   position?: [number, number, number];
   rotationY?: number;
   wallSide?: 'left' | 'right' | 'center' | 'hero';
+}
+
+export interface SectionAward {
+  id: string;
+  name: string;
+  spotlightColorHex: string;
+  plaqueStyle: 'gold' | 'silver' | 'bronze' | 'slate';
+  medalType?: 'trophy' | 'gold' | 'silver' | 'bronze' | 'ribbon' | 'acceptance';
 }
 
 export interface CategoryWing {
@@ -57,6 +65,7 @@ export interface CategoryWing {
   colorHex: string;
   zStart: number;
   zEnd: number;
+  awards?: SectionAward[]; // Specific awards defined for this section
 }
 
 export interface GuestbookEntry {
@@ -65,7 +74,7 @@ export interface GuestbookEntry {
   country: string;
   message: string;
   timestamp: number;
-  rating: number; // 1 to 5 stars
+  rating: number;
   avatarColor?: string;
 }
 
@@ -81,7 +90,7 @@ export interface AdminUser {
 export interface AwardDefinition {
   id: string;
   name: string;
-  spotlightColorHex: string; // e.g. '#ffd700' for gold, '#e2e8f0' for silver, '#f59e0b' for bronze, '#f8fafc' for white
+  spotlightColorHex: string;
   plaqueStyle: 'gold' | 'silver' | 'bronze' | 'slate';
   medalType: 'trophy' | 'gold' | 'silver' | 'bronze' | 'ribbon' | 'acceptance';
   description?: string;
@@ -93,6 +102,14 @@ export interface SalonJudge {
   country: string;
   honors: string;
   role?: string;
+  imageUrl?: string;
+}
+
+export interface PatronageOrg {
+  id: string;
+  organization: string; // e.g. "IAAP", "FIAP", "PSA", etc.
+  patronageNumber: string; // e.g. "2026/503"
+  certificateUrl?: string;
 }
 
 export interface SalonInfo {
@@ -102,12 +119,14 @@ export interface SalonInfo {
   organizedBy: string;
   school: string;
   officialUrl?: string;
+  iaapResultsUrl?: string; // Link to IAAP Results Page
   catalogPdfUrl?: string;
   catalogPdfName?: string;
-  patronages: {
+  patronageList: PatronageOrg[]; // Admin managed organizations and patronage numbers
+  patronages?: {
     iaap?: string;
-    fiap: string;
-    psa: string;
+    fiap?: string;
+    psa?: string;
   };
   totalSubmissions: number;
   acceptedCount: number;

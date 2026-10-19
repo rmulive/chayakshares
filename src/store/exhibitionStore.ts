@@ -7,6 +7,8 @@ import type {
   AdminUser,
   AwardDefinition,
   SalonInfo,
+  PatronageOrg,
+  SalonJudge,
 } from '../types/exhibition';
 import {
   INITIAL_ARTWORKS,
@@ -340,6 +342,16 @@ export const exhibitionStore = {
     notify();
   },
 
+  bulkAddArtworks: (newArtworks: Artwork[]) => {
+    const updated = [...state.artworks, ...newArtworks];
+    state.artworks = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
   updateArtwork: (updatedArtwork: Artwork) => {
     const updated = state.artworks.map(a => a.id === updatedArtwork.id ? updatedArtwork : a);
     state.artworks = updated;
@@ -473,6 +485,68 @@ export const exhibitionStore = {
       ...state.salonInfo,
       catalogPdfUrl: pdfUrl,
       catalogPdfName: fileName || 'Chayaksha_26_Official_Catalogue.pdf',
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  // Patronages Management
+  addPatronageOrg: (org: PatronageOrg) => {
+    const currentList = state.salonInfo.patronageList || [];
+    const updatedList = [...currentList, org];
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      patronageList: updatedList,
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  deletePatronageOrg: (id: string) => {
+    const currentList = state.salonInfo.patronageList || [];
+    const updatedList = currentList.filter(o => o.id !== id);
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      patronageList: updatedList,
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  // Judges Profiles Management
+  addJudge: (judge: SalonJudge) => {
+    const currentJudges = state.salonInfo.judges || [];
+    const updatedJudges = [...currentJudges, judge];
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      judges: updatedJudges,
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  deleteJudge: (id: string) => {
+    const currentJudges = state.salonInfo.judges || [];
+    const updatedJudges = currentJudges.filter(j => j.id !== id);
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      judges: updatedJudges,
     };
     state.salonInfo = updated;
     try {
