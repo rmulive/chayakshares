@@ -29,7 +29,7 @@ export class GalleryScene {
   public focusedArtwork: Artwork | null = null;
 
   private animFrameId: number | null = null;
-  private clock = new THREE.Clock();
+  private lastTime = performance.now();
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -183,7 +183,9 @@ export class GalleryScene {
 
   private animate = () => {
     this.animFrameId = requestAnimationFrame(this.animate);
-    const delta = Math.min(this.clock.getDelta(), 0.1);
+    const now = performance.now();
+    const delta = Math.min((now - this.lastTime) / 1000, 0.1);
+    this.lastTime = now;
 
     // Update camera motion & head bobbing
     this.controller.update(delta);
