@@ -319,10 +319,10 @@ export class CameraController {
     this.camera.quaternion.setFromEuler(euler);
 
     // 7. Update Store
-    exhibitionStore.updateCameraPosition(
-      this.camera.position.x,
-      this.camera.position.y,
-      this.camera.position.z
-    );
+    exhibitionStore.updateCameraPosition({
+      x: this.camera.position.x,
+      y: this.camera.position.y,
+      z: this.camera.position.z,
+    });
   }
 }

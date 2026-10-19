@@ -78,13 +78,34 @@ export interface AdminUser {
   provider: 'google' | 'password';
 }
 
+export interface AwardDefinition {
+  id: string;
+  name: string;
+  spotlightColorHex: string; // e.g. '#ffd700' for gold, '#e2e8f0' for silver, '#f59e0b' for bronze, '#f8fafc' for white
+  plaqueStyle: 'gold' | 'silver' | 'bronze' | 'slate';
+  medalType: 'trophy' | 'gold' | 'silver' | 'bronze' | 'ribbon' | 'acceptance';
+  description?: string;
+}
+
+export interface SalonJudge {
+  id: string;
+  name: string;
+  country: string;
+  honors: string;
+  role?: string;
+}
+
 export interface SalonInfo {
   name: string;
   edition: string;
   year: number;
   organizedBy: string;
   school: string;
+  officialUrl?: string;
+  catalogPdfUrl?: string;
+  catalogPdfName?: string;
   patronages: {
+    iaap?: string;
     fiap: string;
     psa: string;
   };
@@ -92,4 +113,5 @@ export interface SalonInfo {
   acceptedCount: number;
   countriesRepresented: number;
   juryChair: string;
+  judges?: SalonJudge[];
 }

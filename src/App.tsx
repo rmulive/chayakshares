@@ -73,13 +73,13 @@ export const App: React.FC = () => {
               />
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-4xl font-extrabold text-white tracking-wider mb-1">
+            <h1 className="font-serif text-3xl sm:text-4xl font-extrabold text-poster-gold tracking-wider mb-1">
               CHAYAKSHA 26'
             </h1>
-            <p className="text-xs font-mono text-amber-400 mb-1 tracking-widest uppercase">
+            <p className="text-xs font-mono text-amber-300 mb-1 tracking-widest uppercase">
               Virtual Photography Exhibition 2026
             </p>
-            <p className="text-xs text-amber-300/90 font-medium mb-4">
+            <p className="text-xs text-amber-200/90 font-medium mb-4">
               Organized by Radapasa Media Unit • Rajapaksa Central College, Weeraketiya
             </p>
 
@@ -104,10 +104,12 @@ export const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-800 text-[10px] text-slate-400 font-mono flex items-center justify-center gap-4">
-              <span>FIAP Patronage 2026/184</span>
+            <div className="mt-6 pt-4 border-t border-slate-800 text-[10px] text-slate-400 font-mono flex items-center justify-center gap-3 flex-wrap">
+              <span className="text-amber-300/80">FIAP 2026/184</span>
               <span>•</span>
-              <span>PSA Recognition 2026-412</span>
+              <span className="text-amber-300/80">PSA 2026-412</span>
+              <span>•</span>
+              <span className="text-emerald-400/90 font-semibold">IAAP: 2026/503</span>
             </div>
           </div>
         </div>

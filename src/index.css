@@ -75,3 +75,22 @@
 .animate-pulse-gold {
   animation: pulseGold 3s ease-in-out infinite;
 }
+
+/* Poster Gold Typography Styles */
+.text-poster-gold {
+  background: linear-gradient(135deg, #fef08a 0%, #facc15 35%, #eab308 65%, #ca8a04 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(234, 179, 8, 0.35));
+}
+
+.text-poster-bronze {
+  background: linear-gradient(135deg, #fed7aa 0%, #f97316 45%, #c2410c 80%, #7c2d12 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.border-poster-gold {
+  border-color: rgba(234, 179, 8, 0.45);
+  box-shadow: 0 0 15px rgba(234, 179, 8, 0.15);
+}

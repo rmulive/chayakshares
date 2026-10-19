@@ -102,9 +102,10 @@ export class ArtworkMesh extends THREE.Group {
       );
     }
 
-    // --- 4. Museum Plaque underneath with Name, Place, School, Camera Data ---
-    const plaqueWidth = Math.min(photoWidth * 0.82, 1.45);
-    const plaqueHeight = 0.36;
+    // --- 4. Museum Plaque underneath with Photo Title, Name, Place, School, Camera Data ---
+    // Board size is up for the more prominent visibility per user request
+    const plaqueWidth = Math.max(Math.min(photoWidth * 0.96, 2.5), 1.95);
+    const plaqueHeight = 0.58;
     const plaqueGeo = new THREE.PlaneGeometry(plaqueWidth, plaqueHeight);
     const cameraStr = `${artwork.exif.camera.split(' ')[0]} • ${artwork.exif.focalLength} • ${artwork.exif.aperture} • ${artwork.exif.shutterSpeed} • ISO ${artwork.exif.iso}`;
     const plaqueTex = createPlaqueTexture(
@@ -119,23 +120,45 @@ export class ArtworkMesh extends THREE.Group {
     const plaqueMat = new THREE.MeshStandardMaterial({
       map: plaqueTex,
       metalness: isAward ? 0.75 : 0.2,
-      roughness: isAward ? 0.3 : 0.8,
+      roughness: isAward ? 0.25 : 0.8,
     });
     const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
-    plaqueMesh.position.y = -photoHeight / 2 - frameBorder - plaqueHeight / 2 - 0.14;
+    plaqueMesh.position.y = -photoHeight / 2 - frameBorder - plaqueHeight / 2 - 0.12;
     plaqueMesh.position.z = 0.01;
     plaqueMesh.userData = { isArtwork: true, artworkId: artwork.id, artwork };
     this.interactiveObjects.push(plaqueMesh);
     this.add(plaqueMesh);
 
-    // --- 5. Dedicated Ceiling Spotlight ---
-    const spotlightColor = isAward ? 0xfff6eb : 0xffffff;
-    const spotlightIntensity = isAward ? (isHero ? 4.0 : 3.0) : 2.0;
+    // --- 5. Dedicated Ceiling Spotlight with Dynamic Award Colors (Gold, Silver, Bronze, White) ---
+    const awardLower = `${artwork.place || ''} ${artwork.awardTier || ''}`.toLowerCase();
+    let spotlightColor = 0xffffff;
+    let spotlightIntensity = 2.4;
+    let spotAngle = Math.PI / 4.4;
+
+    if (awardLower.includes('gold') || awardLower.includes('best of show') || awardLower.includes('1st')) {
+      // Radiant 24K Pure Gold Spotlight
+      spotlightColor = 0xffd700;
+      spotlightIntensity = isHero ? 5.5 : 4.6;
+      spotAngle = Math.PI / 3.8;
+    } else if (awardLower.includes('silver') || awardLower.includes('2nd')) {
+      // Polished Platinum Silver Spotlight
+      spotlightColor = 0xe0e7ff;
+      spotlightIntensity = 4.0;
+    } else if (awardLower.includes('bronze') || awardLower.includes('3rd')) {
+      // Warm Amber Bronze Spotlight
+      spotlightColor = 0xf59e0b;
+      spotlightIntensity = 3.8;
+    } else if (awardLower.includes('ribbon') || awardLower.includes('honorable')) {
+      // Warm Champagne Amber
+      spotlightColor = 0xfef08a;
+      spotlightIntensity = 3.2;
+    }
+
     this.spotLight = new THREE.SpotLight(spotlightColor, spotlightIntensity);
-    this.spotLight.angle = Math.PI / 4.5;
-    this.spotLight.penumbra = 0.5;
-    this.spotLight.decay = 1.8;
-    this.spotLight.distance = 7;
+    this.spotLight.angle = spotAngle;
+    this.spotLight.penumbra = 0.45;
+    this.spotLight.decay = 1.6;
+    this.spotLight.distance = 8.5;
 
     // Position spotlight above and slightly out from the wall
     this.spotLight.position.set(0, 1.8, 1.2);

@@ -184,6 +184,10 @@ class SoundscapeEngine {
     }
   }
 
+  public setMasterVolume(val: number): void {
+    this.setVolume(val);
+  }
+
   public getVisualizerData(): Uint8Array {
     if (!this.analyserNode) return new Uint8Array(32);
     const data = new Uint8Array(this.analyserNode.frequencyBinCount);

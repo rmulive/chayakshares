@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Trophy, Eye, ExternalLink, School, Camera } from 'lucide-react';
+import { X, Search, Trophy, Eye, ExternalLink, School, Camera, FileDown } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../../store/exhibitionStore';
 import type { Artwork } from '../../types/exhibition';
 
 export const SalonCatalogueModal: React.FC = () => {
-  const { artworks, wings } = useExhibitionStore();
+  const { artworks, wings, salonInfo } = useExhibitionStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -57,24 +57,38 @@ export const SalonCatalogueModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div className="w-full max-w-5xl glass-panel rounded-3xl p-6 sm:p-8 flex flex-col max-h-[92vh] shadow-2xl border border-slate-700/80">
         {/* Header */}
-        <div className="flex items-center justify-between pb-5 border-b border-slate-700/60">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-5 border-b border-slate-700/60 gap-4">
           <div>
             <div className="flex items-center gap-2">
               <Search size={22} className="text-amber-400" />
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-white tracking-wide">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-poster-gold tracking-wide">
                 Salon Catalogue & Archive
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Curated international acceptances conforming to FIAP & PSA standards
+              Curated international acceptances conforming to FIAP, PSA & IAAP standards
             </p>
           </div>
-          <button
-            onClick={() => exhibitionStore.setActiveModal(null)}
-            className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            <X size={20} />
-          </button>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            {salonInfo.catalogPdfUrl && (
+              <a
+                href={salonInfo.catalogPdfUrl}
+                download={salonInfo.catalogPdfName || 'Chayaksha_26_Catalogue.pdf'}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                title="Download complete Exhibition Catalog PDF"
+              >
+                <FileDown size={14} />
+                Catalog PDF
+              </a>
+            )}
+            <button
+              onClick={() => exhibitionStore.setActiveModal(null)}
+              className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Filter & Search Bar */}

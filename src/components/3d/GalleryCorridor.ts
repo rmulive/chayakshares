@@ -214,8 +214,26 @@ export class GalleryCorridor extends THREE.Group {
       beam.position.set(0, this.height - 0.22, z);
       this.add(beam);
 
-      // Pure Highlighted Glowing Text Signage (NO liquid glass)
-      const signGeo = new THREE.PlaneGeometry(6.2, 1.6);
+      // Solid architectural header board (NO liquid glass)
+      const boardGeo = new THREE.BoxGeometry(6.6, 1.4, 0.08);
+      const boardMat = new THREE.MeshStandardMaterial({
+        color: 0x0a0f1d,
+        roughness: 0.35,
+        metalness: 0.65,
+      });
+
+      // Front board
+      const frontBoard = new THREE.Mesh(boardGeo, boardMat);
+      frontBoard.position.set(0, this.height - 1.05, z - 0.2);
+      this.add(frontBoard);
+
+      // Back board
+      const backBoard = new THREE.Mesh(boardGeo, boardMat);
+      backBoard.position.set(0, this.height - 1.05, z + 0.2);
+      this.add(backBoard);
+
+      // Luminous Highlighted Category Signage Text (mounted directly on solid board)
+      const signGeo = new THREE.PlaneGeometry(6.4, 1.35);
       const signTex = createSignageTexture(wing.name, wing.description, wing.colorHex);
       const signMat = new THREE.MeshBasicMaterial({
         map: signTex,
@@ -225,70 +243,70 @@ export class GalleryCorridor extends THREE.Group {
 
       // Front facing sign (walking forward +Z)
       const frontSign = new THREE.Mesh(signGeo, signMat);
-      frontSign.position.set(0, this.height - 1.1, z - 0.22);
+      frontSign.position.set(0, this.height - 1.05, z - 0.25);
       this.add(frontSign);
 
       // Back facing sign (walking backward -Z)
       const backSign = new THREE.Mesh(signGeo, signMat);
       backSign.rotation.y = Math.PI;
-      backSign.position.set(0, this.height - 1.1, z + 0.22);
+      backSign.position.set(0, this.height - 1.05, z + 0.25);
       this.add(backSign);
     });
   }
 
   /**
    * Prominently display the 3 official logos in the 3D exhibition hall:
-   * 1. Chayaksha 26' Logo (center)
+   * 1. Original 3D Gold Chayaksha 26' Logo (center)
    * 2. Rajapaksa Central College Crest (left)
    * 3. Radapasa Media Unit Logo (right)
    */
   private buildGrandEntranceLogos(): void {
-    // 1. Center Official CHAYAKSHA 26' Logo
+    // 1. Center Official 3D Gold CHAYAKSHA 26' Logo
     textureLoader.load('/logos/chayaksha_logo.png', (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      const logoGeo = new THREE.PlaneGeometry(3.8, 2.2);
+      const logoGeo = new THREE.PlaneGeometry(4.6, 2.0);
       const logoMat = new THREE.MeshBasicMaterial({
         map: tex,
         transparent: true,
         depthWrite: false,
       });
       const logoMesh = new THREE.Mesh(logoGeo, logoMat);
-      logoMesh.position.set(0, 5.2, 0.22);
+      logoMesh.position.set(0, 5.25, 0.22);
       this.add(logoMesh);
     });
 
     // 2. Left: Rajapaksa Central College Crest
     textureLoader.load('/logos/school_crest.png', (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      const crestGeo = new THREE.PlaneGeometry(1.3, 1.3);
+      const crestGeo = new THREE.PlaneGeometry(1.4, 1.4);
       const crestMat = new THREE.MeshBasicMaterial({
         map: tex,
         transparent: true,
         depthWrite: false,
       });
       const crestMesh = new THREE.Mesh(crestGeo, crestMat);
-      crestMesh.position.set(-3.2, 5.2, 0.22);
+      crestMesh.position.set(-3.4, 5.25, 0.22);
       this.add(crestMesh);
     });
 
     // 3. Right: Radapasa Media Unit Logo
     textureLoader.load('/logos/radapasa_media_unit.png', (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      const rccGeo = new THREE.PlaneGeometry(1.3, 1.3);
+      const rccGeo = new THREE.PlaneGeometry(1.4, 1.4);
       const rccMat = new THREE.MeshBasicMaterial({
         map: tex,
         transparent: true,
         depthWrite: false,
       });
       const rccMesh = new THREE.Mesh(rccGeo, rccMat);
-      rccMesh.position.set(3.2, 5.2, 0.22);
+      rccMesh.position.set(3.4, 5.25, 0.22);
       this.add(rccMesh);
     });
 
-    // Soft architectural illumination for the entrance wall logos
-    const logoLight = new THREE.SpotLight(0xfff8eb, 2.8, 12, Math.PI / 4, 0.5, 1.8);
+    // Warm radiant golden illumination for the entrance 3D gold logo
+    const logoLight = new THREE.SpotLight(0xffdf78, 4.2, 14, Math.PI / 3.8, 0.4, 1.5);
     logoLight.position.set(0, 5.8, 3.5);
-    logoLight.target.position.set(0, 5.2, 0.2);
+    logoLight.target.position.set(0, 5.25, 0.2);
     this.add(logoLight);
     this.add(logoLight.target);
   }

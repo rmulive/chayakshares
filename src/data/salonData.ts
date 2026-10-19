@@ -1,19 +1,111 @@
-import type { Artwork, CategoryWing, GuestbookEntry, SalonInfo } from '../types/exhibition';
+import type { Artwork, CategoryWing, GuestbookEntry, SalonInfo, AwardDefinition } from '../types/exhibition';
+
+export const INITIAL_AWARDS: AwardDefinition[] = [
+  {
+    id: 'award-best',
+    name: 'Best of Show - Grand Trophy',
+    spotlightColorHex: '#ffd700',
+    plaqueStyle: 'gold',
+    medalType: 'trophy',
+    description: 'Premier grand championship award across all salon wings',
+  },
+  {
+    id: 'award-iaap-gold',
+    name: 'IAAP Gold Medal',
+    spotlightColorHex: '#ffd700',
+    plaqueStyle: 'gold',
+    medalType: 'gold',
+    description: 'International Association of Art Photographers Gold Medal',
+  },
+  {
+    id: 'award-fiap-gold',
+    name: 'FIAP Gold Medal',
+    spotlightColorHex: '#ffd700',
+    plaqueStyle: 'gold',
+    medalType: 'gold',
+    description: 'Fédération Internationale de l’Art Photographique Gold Medal',
+  },
+  {
+    id: 'award-psa-gold',
+    name: 'PSA Gold Medal',
+    spotlightColorHex: '#ffd700',
+    plaqueStyle: 'gold',
+    medalType: 'gold',
+    description: 'Photographic Society of America Gold Medal',
+  },
+  {
+    id: 'award-fiap-silver',
+    name: 'FIAP Silver Medal',
+    spotlightColorHex: '#e2e8f0',
+    plaqueStyle: 'silver',
+    medalType: 'silver',
+    description: 'Fédération Internationale de l’Art Photographique Silver Medal',
+  },
+  {
+    id: 'award-psa-bronze',
+    name: 'PSA Bronze Medal',
+    spotlightColorHex: '#f59e0b',
+    plaqueStyle: 'bronze',
+    medalType: 'bronze',
+    description: 'Photographic Society of America Bronze Medal',
+  },
+  {
+    id: 'award-fiap-ribbon',
+    name: 'FIAP Honorable Ribbon',
+    spotlightColorHex: '#fef08a',
+    plaqueStyle: 'bronze',
+    medalType: 'ribbon',
+    description: 'Official FIAP Honorable Mention Ribbon',
+  },
+  {
+    id: 'award-acceptance',
+    name: 'Salon Acceptance',
+    spotlightColorHex: '#f8fafc',
+    plaqueStyle: 'slate',
+    medalType: 'acceptance',
+    description: 'Officially juried international salon acceptance',
+  },
+];
 
 export const SALON_INFO: SalonInfo = {
-  name: "Chayaksha '26 Virtual Photography Exhibition",
-  edition: 'All Island Inter-School & Open Photography Salon',
+  name: "CHAYAKSHA 26'",
+  edition: 'International Recognized All-Island Inter-School Photography Competition - 2026',
   year: 2026,
-  organizedBy: 'Radapasa Media Unit',
+  organizedBy: 'Media Unit of Rajapaksa Central College (RMU Live)',
   school: 'Rajapaksa Central College, Weeraketiya',
+  officialUrl: 'chayaksha.rmulive.com',
   patronages: {
+    iaap: 'IAAP: 2026/503',
     fiap: 'FIAP 2026/184',
     psa: 'PSA 2026-412',
   },
   totalSubmissions: 6420,
   acceptedCount: 384,
   countriesRepresented: 58,
-  juryChair: 'Radapasa Media Unit • Rajapaksa Central College, Weeraketiya',
+  juryChair: 'Jan Sranko (Slovakia, M IAAP, EFIAP/S)',
+  judges: [
+    {
+      id: 'judge-1',
+      name: 'Jan Sranko',
+      country: 'Slovakia',
+      honors: 'M IAAP, EFIAP/S, MZSF, E PIPC',
+      role: 'International Jury Chairperson',
+    },
+    {
+      id: 'judge-2',
+      name: 'Inci Koyuncu',
+      country: 'Turkiye',
+      honors: 'E IAAP, EFIAP/B, PPSA, GPU CR 2 - SUPREMECOSDIAMOND',
+      role: 'International Jury Member',
+    },
+    {
+      id: 'judge-3',
+      name: 'Zuzana Rahn',
+      country: 'United Kingdom',
+      honors: 'E IAAP, NFIAP, C.FPC, CJIAAP',
+      role: 'International Jury Member',
+    },
+  ],
 };
 
 export const CATEGORY_WINGS: CategoryWing[] = [

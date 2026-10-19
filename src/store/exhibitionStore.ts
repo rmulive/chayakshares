@@ -1,11 +1,27 @@
 import { useState, useEffect } from 'react';
-import type { Artwork, CategoryWing, GalleryTheme, GuestbookEntry, AdminUser } from '../types/exhibition';
-import { INITIAL_ARTWORKS, CATEGORY_WINGS, INITIAL_GUESTBOOK } from '../data/salonData';
+import type {
+  Artwork,
+  CategoryWing,
+  GalleryTheme,
+  GuestbookEntry,
+  AdminUser,
+  AwardDefinition,
+  SalonInfo,
+} from '../types/exhibition';
+import {
+  INITIAL_ARTWORKS,
+  CATEGORY_WINGS,
+  INITIAL_GUESTBOOK,
+  INITIAL_AWARDS,
+  SALON_INFO,
+} from '../data/salonData';
 import { soundscape } from '../audio/SoundscapeEngine';
 
 interface ExhibitionState {
   artworks: Artwork[];
   wings: CategoryWing[];
+  awards: AwardDefinition[];
+  salonInfo: SalonInfo;
   guestbook: GuestbookEntry[];
   theme: GalleryTheme;
   activeArtwork: Artwork | null;
@@ -23,6 +39,9 @@ const STORAGE_KEY_ARTWORKS = 'chayaksha_artworks_v4';
 const STORAGE_KEY_GUESTBOOK = 'chayaksha_guestbook_v1';
 const STORAGE_KEY_THEME = 'chayaksha_theme_v1';
 const STORAGE_KEY_ADMIN = 'chayaksha_admin_user_v1';
+const STORAGE_KEY_SALON_INFO = 'chayaksha_salon_info_v2';
+const STORAGE_KEY_AWARDS = 'chayaksha_awards_v1';
+const STORAGE_KEY_WINGS = 'chayaksha_wings_v1';
 
 // Initial state load
 function loadInitialArtworks(): Artwork[] {
@@ -63,10 +82,36 @@ function loadInitialAdmin(): AdminUser | null {
   return null;
 }
 
+function loadInitialSalonInfo(): SalonInfo {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_SALON_INFO);
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return SALON_INFO;
+}
+
+function loadInitialAwards(): AwardDefinition[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_AWARDS);
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return INITIAL_AWARDS;
+}
+
+function loadInitialWings(): CategoryWing[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_WINGS);
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return CATEGORY_WINGS;
+}
+
 // Single-source state object
 let state: ExhibitionState = {
   artworks: loadInitialArtworks(),
-  wings: CATEGORY_WINGS,
+  wings: loadInitialWings(),
+  awards: loadInitialAwards(),
+  salonInfo: loadInitialSalonInfo(),
   guestbook: loadInitialGuestbook(),
   theme: loadInitialTheme(),
   activeArtwork: null,
@@ -103,13 +148,23 @@ try {
     } else if (type === 'SYNC_THEME') {
       state.theme = payload;
       notify();
+    } else if (type === 'SYNC_SALON_INFO') {
+      state.salonInfo = payload;
+      notify();
+    } else if (type === 'SYNC_AWARDS') {
+      state.awards = payload;
+      notify();
+    } else if (type === 'SYNC_WINGS') {
+      state.wings = payload;
+      notify();
     }
   };
 } catch (_) {}
 
 export const exhibitionStore = {
-  getState: () => state,
+  getState: (): ExhibitionState => state,
 
+  // Theme
   setTheme: (theme: GalleryTheme) => {
     state.theme = theme;
     try {
@@ -119,43 +174,70 @@ export const exhibitionStore = {
     notify();
   },
 
-  setActiveArtwork: (artwork: Artwork | null, glideCamera = true) => {
+  // Active artwork inspection modal
+  setActiveArtwork: (artwork: Artwork | null, standBeforeIn3D = false) => {
     state.activeArtwork = artwork;
-    state.isInspecting = !!artwork;
-    if (artwork && glideCamera && artwork.position) {
-      const [ax, , az] = artwork.position;
-      let targetCamX = ax;
-      let targetCamZ = az;
-      
+    state.isInspecting = !!artwork && !standBeforeIn3D;
+
+    if (artwork && standBeforeIn3D && artwork.position) {
+      const artPos = artwork.position;
+      let standX = artPos[0];
+      let standZ = artPos[2];
+
       if (artwork.wallSide === 'left') {
-        targetCamX = ax + 2.4;
+        standX = artPos[0] + 2.8;
       } else if (artwork.wallSide === 'right') {
-        targetCamX = ax - 2.4;
+        standX = artPos[0] - 2.8;
       } else if (artwork.wallSide === 'hero') {
-        targetCamZ = az + 3.8;
+        standZ = artPos[2] + 4.0;
+        standX = 0;
       }
 
       state.teleportTarget = {
-        x: targetCamX,
+        x: standX,
         y: 1.7,
-        z: targetCamZ,
-        targetX: ax,
-        targetZ: az,
+        z: standZ,
+        targetX: artPos[0],
+        targetZ: artPos[2],
       };
+      state.isInspecting = false;
+      state.activeArtwork = null;
+    }
+
+    notify();
+  },
+
+  clearTeleportTarget: () => {
+    state.teleportTarget = null;
+  },
+
+  clearTeleport: () => {
+    state.teleportTarget = null;
+  },
+
+  teleportTo: (x: number, y: number, z: number, targetX?: number, targetZ?: number) => {
+    state.teleportTarget = { x, y, z, targetX, targetZ };
+    state.isInspecting = false;
+    state.activeArtwork = null;
+    notify();
+  },
+
+  // Modal overlays
+  setActiveModal: (modal: 'floorplan' | 'catalogue' | 'guestbook' | 'curator' | 'info' | null) => {
+    state.activeModal = modal;
+    if (modal) {
+      state.activeArtwork = null;
+      state.isInspecting = false;
     }
     notify();
   },
 
-  setActiveModal: (modal: 'floorplan' | 'catalogue' | 'guestbook' | 'curator' | 'info' | null) => {
-    state.activeModal = modal;
-    notify();
-  },
-
-  toggleAudio: async () => {
+  // Soundscape audio
+  toggleAudio: () => {
     const nextState = !state.audioEnabled;
     state.audioEnabled = nextState;
     if (nextState) {
-      await soundscape.start();
+      soundscape.start();
     } else {
       soundscape.stop();
     }
@@ -164,39 +246,52 @@ export const exhibitionStore = {
 
   setAudioVolume: (volume: number) => {
     state.audioVolume = volume;
-    soundscape.setVolume(volume);
+    soundscape.setMasterVolume(volume);
     notify();
   },
 
-  updateCameraPosition: (x: number, y: number, z: number) => {
-    state.cameraPosition = { x, y, z };
-    
-    // Determine active wing
-    const wing = state.wings.find(w => z >= w.zStart && z <= w.zEnd) || state.wings[0];
-    if (wing.id !== state.currentWing.id) {
+  // Camera tracking
+  updateCameraPosition: (xOrPos: number | { x: number; y: number; z: number }, y?: number, z?: number) => {
+    let pos: { x: number; y: number; z: number };
+    if (typeof xOrPos === 'object') {
+      pos = xOrPos;
+    } else {
+      pos = { x: xOrPos, y: y ?? 1.7, z: z ?? 0 };
+    }
+    state.cameraPosition = pos;
+
+    const wing = state.wings.find(
+      w => pos.z >= w.zStart && pos.z < w.zEnd
+    );
+    if (wing && wing.id !== state.currentWing.id) {
       state.currentWing = wing;
-      soundscape.updateSpatialZone(z);
       notify();
     }
   },
 
-  teleportTo: (x: number, y: number, z: number, targetX?: number, targetZ?: number) => {
-    state.teleportTarget = { x, y, z, targetX, targetZ };
-    notify();
+  // Teleportation to specific wing
+  teleportToWing: (wingId: string) => {
+    const wing = state.wings.find(w => w.id === wingId);
+    if (wing) {
+      state.teleportTarget = {
+        x: 0,
+        y: 1.7,
+        z: wing.zStart + 4,
+      };
+      state.currentWing = wing;
+      state.activeModal = null;
+      notify();
+    }
   },
 
-  clearTeleport: () => {
-    state.teleportTarget = null;
-  },
-
-  // Admin Authentication Actions
+  // Admin Authentication
   loginWithGoogle: async (): Promise<AdminUser> => {
     const googleUser: AdminUser = {
       id: `admin-google-${Date.now()}`,
-      name: 'Seniru Bandara',
-      email: 'seniru.bandara@rcc.sch.lk',
-      role: 'Chief Curator & Radapasa Media Unit',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+      name: 'Seniru Jayawardena',
+      email: 'seniru@chayaksha.rmulive.com',
+      role: 'Head of Media & Exhibition Curator',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
       provider: 'google',
     };
     state.adminUser = googleUser;
@@ -208,11 +303,10 @@ export const exhibitionStore = {
   },
 
   loginWithEmail: async (email: string, pass: string): Promise<boolean> => {
-    // Validate credentials (accepts admin@chayaksha.lk, curator@radapasa.lk or any valid email with 6+ char password)
     if (pass.length >= 6) {
       const emailUser: AdminUser = {
         id: `admin-email-${Date.now()}`,
-        name: email.split('@')[0].replace('.', ' ').toUpperCase(),
+        name: email.split('@')[0].replace(/[._]/g, ' ').toUpperCase(),
         email,
         role: 'Exhibition Curator Admin',
         provider: 'password',
@@ -235,7 +329,7 @@ export const exhibitionStore = {
     notify();
   },
 
-  // Curator actions
+  // Curator actions: Artworks
   addArtwork: (artwork: Artwork) => {
     const updated = [...state.artworks, artwork];
     state.artworks = updated;
@@ -270,6 +364,21 @@ export const exhibitionStore = {
     notify();
   },
 
+  bulkDeleteArtworks: (ids: string[]) => {
+    const idSet = new Set(ids);
+    const updated = state.artworks.filter(a => !idSet.has(a.id));
+    state.artworks = updated;
+    if (state.activeArtwork && idSet.has(state.activeArtwork.id)) {
+      state.activeArtwork = null;
+      state.isInspecting = false;
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
   resetArtworksToDefault: () => {
     state.artworks = INITIAL_ARTWORKS;
     try {
@@ -279,6 +388,101 @@ export const exhibitionStore = {
     notify();
   },
 
+  // Awards Management
+  addAward: (award: AwardDefinition) => {
+    const updated = [...state.awards, award];
+    state.awards = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_AWARDS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_AWARDS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  updateAward: (award: AwardDefinition) => {
+    const updated = state.awards.map(a => a.id === award.id ? award : a);
+    state.awards = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_AWARDS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_AWARDS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  deleteAward: (id: string) => {
+    const updated = state.awards.filter(a => a.id !== id);
+    state.awards = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_AWARDS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_AWARDS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  // Categories / Wings Management
+  addCategoryWing: (wing: CategoryWing) => {
+    const updated = [...state.wings, wing];
+    state.wings = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  updateCategoryWing: (wing: CategoryWing) => {
+    const updated = state.wings.map(w => w.id === wing.id ? wing : w);
+    state.wings = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  deleteCategoryWing: (id: string) => {
+    const updated = state.wings.filter(w => w.id !== id);
+    state.wings = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  // Salon Details & Metadata
+  updateSalonInfo: (info: Partial<SalonInfo>) => {
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      ...info,
+      patronages: {
+        ...state.salonInfo.patronages,
+        ...(info.patronages || {}),
+      },
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  setCatalogPdf: (pdfUrl: string, fileName?: string) => {
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      catalogPdfUrl: pdfUrl,
+      catalogPdfName: fileName || 'Chayaksha_26_Official_Catalogue.pdf',
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  // Guestbook
   addGuestbookEntry: (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => {
     const newEntry: GuestbookEntry = {
       ...entry,
@@ -296,6 +500,17 @@ export const exhibitionStore = {
 
   deleteGuestbookEntry: (id: string) => {
     const updated = state.guestbook.filter(e => e.id !== id);
+    state.guestbook = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_GUESTBOOK, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_GUESTBOOK', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  bulkDeleteGuestbook: (ids: string[]) => {
+    const idSet = new Set(ids);
+    const updated = state.guestbook.filter(e => !idSet.has(e.id));
     state.guestbook = updated;
     try {
       localStorage.setItem(STORAGE_KEY_GUESTBOOK, JSON.stringify(updated));
