@@ -56,7 +56,7 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({ sceneInstance }) =
       sceneInstance.controller.stopCinematicTour();
       setIsCinematic(false);
     }
-    exhibitionStore.teleportTo(0, 1.7, 4.5, 0, 15);
+    exhibitionStore.teleportTo(0, 1.7, 4.0, 0, 30);
   };
 
   // Joystick touch handlers

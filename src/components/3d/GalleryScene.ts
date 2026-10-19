@@ -3,7 +3,6 @@ import { CameraController } from './CameraController';
 import { ThemeManager } from './ThemeManager';
 import { GalleryCorridor } from './GalleryCorridor';
 import { ArtworkMesh } from './ArtworkMesh';
-import { AtmosphericEffects } from './AtmosphericEffects';
 import type { Artwork, GalleryTheme } from '../../types/exhibition';
 import { exhibitionStore } from '../../store/exhibitionStore';
 
@@ -15,7 +14,6 @@ export class GalleryScene {
   public controller: CameraController;
   public themeManager: ThemeManager;
   public corridor: GalleryCorridor;
-  public atmospheric: AtmosphericEffects;
 
   private ambientLight: THREE.AmbientLight;
   private dirLight: THREE.DirectionalLight;
@@ -74,11 +72,7 @@ export class GalleryScene {
     this.corridor = new GalleryCorridor(this.themeManager);
     this.scene.add(this.corridor);
 
-    // 6. Atmospheric Effects (Dust Motes & Light Cones)
-    this.atmospheric = new AtmosphericEffects(this.corridor.length, this.corridor.width, this.corridor.height);
-    this.scene.add(this.atmospheric);
-
-    // 7. Camera Controller
+    // 6. Camera Controller
     this.controller = new CameraController(this.camera, this.renderer.domElement);
 
     // 8. Load Artworks
@@ -189,9 +183,6 @@ export class GalleryScene {
 
     // Update camera motion & head bobbing
     this.controller.update(delta);
-
-    // Update atmospheric dust particles
-    this.atmospheric.update(delta);
 
     // Center raycast for focused artwork detection
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);

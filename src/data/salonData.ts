@@ -106,9 +106,9 @@ export const INITIAL_ARTWORKS: Artwork[] = [
       location: 'Torres del Paine, Patagonia',
       year: 2025,
     },
-    position: [0, 2.5, 3.5], // Center hero wall
+    position: [0, 3.2, 0.15], // Mounted flush against entrance front wall
     wallSide: 'hero',
-    rotationY: Math.PI,
+    rotationY: 0,
   },
 
   // --- AWARD WINNERS PAVILION ---

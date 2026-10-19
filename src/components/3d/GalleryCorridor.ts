@@ -285,8 +285,8 @@ export class GalleryCorridor extends THREE.Group {
   }
 
   private buildGrandEntrance(): void {
-    // Grand Entrance Arch at Z = 1.0
-    const entranceBannerGeo = new THREE.PlaneGeometry(8, 2.2);
+    // Grand Entrance Arch at Z = 0.2 above the Hero Piece
+    const entranceBannerGeo = new THREE.PlaneGeometry(7.5, 1.8);
     const entranceTex = createSignageTexture(
       'CHAYAKSHA 2026',
       `${SALON_INFO.edition} • Under Patronage of ${SALON_INFO.patronages.fiap} & ${SALON_INFO.patronages.psa}`,
@@ -294,16 +294,16 @@ export class GalleryCorridor extends THREE.Group {
     );
     const entranceMat = new THREE.MeshBasicMaterial({ map: entranceTex, transparent: true });
     const entranceBanner = new THREE.Mesh(entranceBannerGeo, entranceMat);
-    entranceBanner.position.set(0, 4.8, 1.0);
+    entranceBanner.position.set(0, 5.3, 0.2);
     this.add(entranceBanner);
 
-    // Warm welcoming foyer spotlights
-    const foyerLightL = new THREE.PointLight(0xfbbf24, 7, 14, 1.6);
-    foyerLightL.position.set(-3.5, 4.5, 5.0);
+    // Soft warm-white museum ambient illumination
+    const foyerLightL = new THREE.PointLight(0xfff8eb, 1.6, 14, 2.0);
+    foyerLightL.position.set(-3.8, 5.0, 5.0);
     this.add(foyerLightL);
 
-    const foyerLightR = new THREE.PointLight(0xfbbf24, 7, 14, 1.6);
-    foyerLightR.position.set(3.5, 4.5, 5.0);
+    const foyerLightR = new THREE.PointLight(0xfff8eb, 1.6, 14, 2.0);
+    foyerLightR.position.set(3.8, 5.0, 5.0);
     this.add(foyerLightR);
   }
 }

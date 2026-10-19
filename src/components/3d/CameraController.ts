@@ -7,7 +7,7 @@ export class CameraController {
 
   // Angles & Kinematics
   public pitch = 0; // vertical look
-  public yaw = 0;   // horizontal look (yaw 0 looks down +Z)
+  public yaw = Math.PI; // Look down +Z axis (the open exhibition hall)
   private currentVelocity = new THREE.Vector3();
   private keysPressed: Record<string, boolean> = {};
 
@@ -51,9 +51,9 @@ export class CameraController {
     this.camera = camera;
     this.domElement = domElement;
 
-    // Initial spawn in Grand Foyer
-    this.camera.position.set(0, this.defaultEyeHeight, 4.5);
-    this.yaw = 0;
+    // Initial spawn in Grand Foyer, looking straight down the open gallery (+Z)
+    this.camera.position.set(0, this.defaultEyeHeight, 4.0);
+    this.yaw = Math.PI; // 180 deg looks towards +Z
     this.pitch = 0;
 
     this.initCinematicWaypoints();
@@ -62,16 +62,16 @@ export class CameraController {
 
   private initCinematicWaypoints(): void {
     this.tourWaypoints = [
-      { pos: new THREE.Vector3(0, 1.7, 4.5), look: new THREE.Vector3(0, 2.5, 3.5), duration: 5 },       // Hero Wall
-      { pos: new THREE.Vector3(-3.2, 1.7, 20), look: new THREE.Vector3(-5.9, 2.3, 20), duration: 6 },   // FIAP Gold
-      { pos: new THREE.Vector3(3.2, 1.7, 20), look: new THREE.Vector3(5.9, 2.3, 20), duration: 6 },     // PSA Gold
-      { pos: new THREE.Vector3(0, 1.7, 28), look: new THREE.Vector3(0, 2.0, 50), duration: 4 },          // Award Pavilion Walk
-      { pos: new THREE.Vector3(-3.2, 1.7, 36), look: new THREE.Vector3(-5.9, 2.3, 36), duration: 6 },   // Bengal Tiger Best of Show
-      { pos: new THREE.Vector3(0, 1.7, 56), look: new THREE.Vector3(-5.9, 2.3, 50), duration: 5 },      // Monochrome Wing
-      { pos: new THREE.Vector3(0, 1.7, 84), look: new THREE.Vector3(5.9, 2.3, 78), duration: 5 },       // Nature Wing
-      { pos: new THREE.Vector3(0, 1.7, 112), look: new THREE.Vector3(-5.9, 2.3, 106), duration: 5 },    // Street Wing
-      { pos: new THREE.Vector3(0, 1.7, 140), look: new THREE.Vector3(5.9, 2.3, 134), duration: 5 },    // Architecture Wing
-      { pos: new THREE.Vector3(0, 1.7, 168), look: new THREE.Vector3(0, 2.0, 184), duration: 5 },       // Creative Wing & Terminus
+      { pos: new THREE.Vector3(0, 1.7, 4.0), look: new THREE.Vector3(0, 2.0, 20), duration: 5 },
+      { pos: new THREE.Vector3(-3.0, 1.7, 20), look: new THREE.Vector3(-5.9, 2.3, 20), duration: 6 },
+      { pos: new THREE.Vector3(3.0, 1.7, 20), look: new THREE.Vector3(5.9, 2.3, 20), duration: 6 },
+      { pos: new THREE.Vector3(0, 1.7, 28), look: new THREE.Vector3(0, 2.0, 50), duration: 4 },
+      { pos: new THREE.Vector3(-3.0, 1.7, 36), look: new THREE.Vector3(-5.9, 2.3, 36), duration: 6 },
+      { pos: new THREE.Vector3(0, 1.7, 56), look: new THREE.Vector3(-5.9, 2.3, 50), duration: 5 },
+      { pos: new THREE.Vector3(0, 1.7, 84), look: new THREE.Vector3(5.9, 2.3, 78), duration: 5 },
+      { pos: new THREE.Vector3(0, 1.7, 112), look: new THREE.Vector3(-5.9, 2.3, 106), duration: 5 },
+      { pos: new THREE.Vector3(0, 1.7, 140), look: new THREE.Vector3(5.9, 2.3, 134), duration: 5 },
+      { pos: new THREE.Vector3(0, 1.7, 168), look: new THREE.Vector3(0, 2.0, 184), duration: 5 },
     ];
   }
 
@@ -113,7 +113,6 @@ export class CameraController {
   };
 
   private onCanvasClick = () => {
-    // Only lock pointer if no modal is active and not inspecting
     const state = exhibitionStore.getState();
     if (!state.activeModal && !state.activeArtwork && !this.isPointerLocked) {
       this.domElement.requestPointerLock?.();
@@ -245,8 +244,8 @@ export class CameraController {
       this.camera.position.lerp(wp.pos, lerpAlpha);
 
       const lookDir = new THREE.Vector3().subVectors(wp.look, this.camera.position).normalize();
-      const targetYaw = Math.atan2(lookDir.x, lookDir.z);
-      const targetPitch = Math.asin(lookDir.y);
+      const targetYaw = Math.atan2(-lookDir.x, -lookDir.z);
+      const targetPitch = Math.asin(Math.max(-0.99, Math.min(0.99, lookDir.y)));
 
       this.yaw = THREE.MathUtils.lerp(this.yaw, targetYaw, lerpAlpha);
       this.pitch = THREE.MathUtils.lerp(this.pitch, targetPitch, lerpAlpha);
@@ -261,8 +260,8 @@ export class CameraController {
       this.camera.position.lerp(this.glideTargetPos, posLerp);
 
       const dir = new THREE.Vector3().subVectors(this.glideTargetLookAt, this.camera.position).normalize();
-      const targetYaw = Math.atan2(dir.x, dir.z);
-      const targetPitch = Math.asin(dir.y);
+      const targetYaw = Math.atan2(-dir.x, -dir.z);
+      const targetPitch = Math.asin(Math.max(-0.99, Math.min(0.99, dir.y)));
 
       this.yaw = THREE.MathUtils.lerp(this.yaw, targetYaw, posLerp);
       this.pitch = THREE.MathUtils.lerp(this.pitch, targetPitch, posLerp);
@@ -298,8 +297,14 @@ export class CameraController {
       this.currentVelocity.lerp(targetMove.multiplyScalar(maxSpeed), 1 - Math.exp(-delta * accelRate));
 
       if (this.currentVelocity.lengthSq() > 0.001) {
-        const forward = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-        const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+        // Compute forward and right horizontal vectors relative to actual camera gaze
+        const forward = new THREE.Vector3();
+        this.camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3();
+        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
         const displacement = new THREE.Vector3()
           .addScaledVector(forward, this.currentVelocity.z)
@@ -316,7 +321,6 @@ export class CameraController {
         const bobY = Math.sin(this.walkCycle) * (isSprinting ? 0.045 : 0.025);
         this.camera.position.y = this.defaultEyeHeight + bobY;
       } else {
-        // Return gracefully to default eye height
         this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.defaultEyeHeight, 1 - Math.exp(-delta * 6));
       }
 

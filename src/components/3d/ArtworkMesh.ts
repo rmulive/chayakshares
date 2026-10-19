@@ -125,16 +125,16 @@ export class ArtworkMesh extends THREE.Group {
     this.add(plaqueMesh);
 
     // --- 5. Dedicated Ceiling Spotlight ---
-    const spotlightColor = isAward ? 0xffea9f : 0xf8fafc;
-    const spotlightIntensity = isAward ? (isHero ? 28 : 20) : 14;
+    const spotlightColor = isAward ? 0xfff6eb : 0xffffff;
+    const spotlightIntensity = isAward ? (isHero ? 4.0 : 3.0) : 2.0;
     this.spotLight = new THREE.SpotLight(spotlightColor, spotlightIntensity);
-    this.spotLight.angle = Math.PI / 5.5;
-    this.spotLight.penumbra = 0.45;
-    this.spotLight.decay = 1.6;
-    this.spotLight.distance = 12;
+    this.spotLight.angle = Math.PI / 4.5;
+    this.spotLight.penumbra = 0.5;
+    this.spotLight.decay = 1.8;
+    this.spotLight.distance = 7;
 
     // Position spotlight above and slightly out from the wall
-    this.spotLight.position.set(0, 3.2, 2.4);
+    this.spotLight.position.set(0, 1.8, 1.2);
     this.spotLight.target = this.photoMesh;
     this.add(this.spotLight);
     this.add(this.spotLight.target);
