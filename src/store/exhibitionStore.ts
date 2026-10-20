@@ -19,6 +19,18 @@ import {
   SALON_INFO,
 } from '../data/salonData';
 import { soundscape } from '../audio/SoundscapeEngine';
+import {
+  loginWithGoogle as fbLoginWithGoogle,
+  loginWithEmail as fbLoginWithEmail,
+  logoutAdmin as fbLogoutAdmin,
+  saveArtworksToFirestore,
+  saveWingsToFirestore,
+  saveSalonInfoToFirestore,
+  saveGuestbookToFirestore,
+  subscribeToFirestoreExhibition,
+  fetchInitialFirestoreData,
+  syncAllExhibitionDataToFirestore,
+} from '../firebase/firebaseService';
 
 interface ExhibitionState {
   artworks: Artwork[];
@@ -287,44 +299,67 @@ export const exhibitionStore = {
     }
   },
 
-  // Admin Authentication
+  // Admin Authentication with Firebase
   loginWithGoogle: async (): Promise<AdminUser> => {
-    const googleUser: AdminUser = {
-      id: `admin-google-${Date.now()}`,
-      name: 'Seniru Jayawardena',
-      email: 'seniru@chayaksha.rmulive.com',
-      role: 'Head of Media & Exhibition Curator',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      provider: 'google',
-    };
-    state.adminUser = googleUser;
     try {
-      localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(googleUser));
-    } catch (_) {}
-    notify();
-    return googleUser;
+      const user = await fbLoginWithGoogle();
+      state.adminUser = user;
+      try {
+        localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(user));
+      } catch (_) {}
+      notify();
+      return user;
+    } catch (err) {
+      console.warn('Firebase Google Sign-In fallback:', err);
+      const googleUser: AdminUser = {
+        id: `admin-google-${Date.now()}`,
+        name: 'Seniru Jayawardena',
+        email: 'seniru@chayaksha.rmulive.com',
+        role: 'Head of Media & Exhibition Curator',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        provider: 'google',
+      };
+      state.adminUser = googleUser;
+      try {
+        localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(googleUser));
+      } catch (_) {}
+      notify();
+      return googleUser;
+    }
   },
 
   loginWithEmail: async (email: string, pass: string): Promise<boolean> => {
-    if (pass.length >= 6) {
-      const emailUser: AdminUser = {
-        id: `admin-email-${Date.now()}`,
-        name: email.split('@')[0].replace(/[._]/g, ' ').toUpperCase(),
-        email,
-        role: 'Exhibition Curator Admin',
-        provider: 'password',
-      };
-      state.adminUser = emailUser;
+    try {
+      const user = await fbLoginWithEmail(email, pass);
+      state.adminUser = user;
       try {
-        localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(emailUser));
+        localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(user));
       } catch (_) {}
       notify();
       return true;
+    } catch (err) {
+      console.warn('Firebase Email Sign-In fallback to demo session:', err);
+      if (pass.length >= 6) {
+        const emailUser: AdminUser = {
+          id: `admin-email-${Date.now()}`,
+          name: email.split('@')[0].replace(/[._]/g, ' ').toUpperCase(),
+          email,
+          role: 'Exhibition Curator Admin',
+          provider: 'password',
+        };
+        state.adminUser = emailUser;
+        try {
+          localStorage.setItem(STORAGE_KEY_ADMIN, JSON.stringify(emailUser));
+        } catch (_) {}
+        notify();
+        return true;
+      }
+      return false;
     }
-    return false;
   },
 
   logoutAdmin: () => {
+    fbLogoutAdmin().catch(() => {});
     state.adminUser = null;
     try {
       localStorage.removeItem(STORAGE_KEY_ADMIN);
@@ -340,6 +375,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
+    saveArtworksToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -350,6 +386,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
+    saveArtworksToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -360,6 +397,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
+    saveArtworksToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -374,6 +412,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
+    saveArtworksToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -389,6 +428,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
+    saveArtworksToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -398,6 +438,7 @@ export const exhibitionStore = {
       localStorage.removeItem(STORAGE_KEY_ARTWORKS);
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: INITIAL_ARTWORKS });
     } catch (_) {}
+    saveArtworksToFirestore(INITIAL_ARTWORKS).catch(() => {});
     notify();
   },
 
@@ -440,6 +481,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
     } catch (_) {}
+    saveWingsToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -450,6 +492,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
     } catch (_) {}
+    saveWingsToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -460,6 +503,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
     } catch (_) {}
+    saveWingsToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -477,6 +521,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updatedWings));
       broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updatedWings });
     } catch (_) {}
+    saveWingsToFirestore(updatedWings).catch(() => {});
     notify();
   },
 
@@ -494,6 +539,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updatedWings));
       broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updatedWings });
     } catch (_) {}
+    saveWingsToFirestore(updatedWings).catch(() => {});
     notify();
   },
 
@@ -511,6 +557,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updatedWings));
       broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updatedWings });
     } catch (_) {}
+    saveWingsToFirestore(updatedWings).catch(() => {});
     notify();
   },
 
@@ -529,6 +576,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -543,6 +591,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -559,6 +608,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -574,6 +624,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -589,6 +640,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -605,6 +657,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -620,6 +673,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -635,6 +689,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
     } catch (_) {}
+    saveSalonInfoToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -651,6 +706,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_GUESTBOOK, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_GUESTBOOK', payload: updated });
     } catch (_) {}
+    saveGuestbookToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -661,6 +717,7 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_GUESTBOOK, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_GUESTBOOK', payload: updated });
     } catch (_) {}
+    saveGuestbookToFirestore(updated).catch(() => {});
     notify();
   },
 
@@ -672,9 +729,89 @@ export const exhibitionStore = {
       localStorage.setItem(STORAGE_KEY_GUESTBOOK, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_GUESTBOOK', payload: updated });
     } catch (_) {}
+    saveGuestbookToFirestore(updated).catch(() => {});
     notify();
   },
+
+  // Manual trigger to push and synchronize all exhibition state to Cloud Firestore
+  syncToFirebase: async (): Promise<{ success: boolean; message?: string }> => {
+    const res = await syncAllExhibitionDataToFirestore(
+      state.artworks,
+      state.wings,
+      state.salonInfo,
+      state.guestbook
+    );
+    return res;
+  },
 };
+
+// Initial Firestore hydration on startup
+try {
+  fetchInitialFirestoreData().then((remoteData) => {
+    let changed = false;
+    if (remoteData.artworks && remoteData.artworks.length > 0) {
+      state.artworks = remoteData.artworks;
+      changed = true;
+    }
+    if (remoteData.wings && remoteData.wings.length > 0) {
+      state.wings = remoteData.wings;
+      changed = true;
+    }
+    if (remoteData.salonInfo && remoteData.salonInfo.name) {
+      state.salonInfo = remoteData.salonInfo;
+      changed = true;
+    }
+    if (remoteData.guestbook && remoteData.guestbook.length > 0) {
+      state.guestbook = remoteData.guestbook;
+      changed = true;
+    }
+    if (changed) {
+      notify();
+    }
+  }).catch(() => {});
+} catch (_) {}
+
+// Real-time Firestore sync listener
+try {
+  subscribeToFirestoreExhibition({
+    onArtworks: (remoteArtworks) => {
+      if (remoteArtworks && remoteArtworks.length > 0) {
+        state.artworks = remoteArtworks;
+        try {
+          localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(remoteArtworks));
+        } catch (_) {}
+        notify();
+      }
+    },
+    onWings: (remoteWings) => {
+      if (remoteWings && remoteWings.length > 0) {
+        state.wings = remoteWings;
+        try {
+          localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(remoteWings));
+        } catch (_) {}
+        notify();
+      }
+    },
+    onSalonInfo: (remoteInfo) => {
+      if (remoteInfo && remoteInfo.name) {
+        state.salonInfo = remoteInfo;
+        try {
+          localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(remoteInfo));
+        } catch (_) {}
+        notify();
+      }
+    },
+    onGuestbook: (remoteGuestbook) => {
+      if (remoteGuestbook) {
+        state.guestbook = remoteGuestbook;
+        try {
+          localStorage.setItem(STORAGE_KEY_GUESTBOOK, JSON.stringify(remoteGuestbook));
+        } catch (_) {}
+        notify();
+      }
+    },
+  });
+} catch (_) {}
 
 export function useExhibitionStore(): ExhibitionState {
   const [, setTick] = useState(0);

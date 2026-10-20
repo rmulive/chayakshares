@@ -30,8 +30,13 @@ import {
   GripVertical,
   ChevronLeft,
   ChevronRight,
+  UploadCloud,
 } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../store/exhibitionStore';
+import {
+  uploadImageToStorage,
+  uploadCatalogPdfToStorage,
+} from '../firebase/firebaseService';
 import type {
   Artwork,
   GalleryTheme,
@@ -71,9 +76,26 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
 
   // Global notification banner
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSyncingFirebase, setIsSyncingFirebase] = useState(false);
   const showBanner = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
+  const handleSyncToFirebase = async () => {
+    setIsSyncingFirebase(true);
+    try {
+      const res = await exhibitionStore.syncToFirebase();
+      if (res.success) {
+        showBanner('Exhibition data synchronized to Cloud Firestore!');
+      } else {
+        alert(`Firebase sync notice: ${res.message}`);
+      }
+    } catch (e: any) {
+      alert(`Sync notice: ${e?.message || e}`);
+    } finally {
+      setIsSyncingFirebase(false);
+    }
   };
 
   // -------------------------------------------------------------
@@ -184,6 +206,15 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
           };
 
           setBulkQueue(prev => [...prev, newItem]);
+
+          // Asynchronously upload to Firebase Cloud Storage bucket
+          uploadImageToStorage(file, 'photographs')
+            .then((fireUrl) => {
+              handleUpdateBulkItem(newItem.id, 'imageUrl', fireUrl);
+            })
+            .catch((err) => {
+              console.warn('Firebase Storage upload notice (using local dataUrl):', err);
+            });
         };
         img.src = dataUrl;
       };
@@ -417,6 +448,10 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       setJudgeImageUrl(event.target?.result as string);
     };
     reader.readAsDataURL(file);
+
+    uploadImageToStorage(file, 'judges')
+      .then(fireUrl => setJudgeImageUrl(fireUrl))
+      .catch(() => {});
   };
 
   const handleAddJudge = (e: React.FormEvent) => {
@@ -491,6 +526,13 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       showBanner(`Catalog PDF "${file.name}" uploaded successfully!`);
     };
     reader.readAsDataURL(file);
+
+    uploadCatalogPdfToStorage(file)
+      .then(fireUrl => {
+        exhibitionStore.setCatalogPdf(fireUrl, file.name);
+        setEditCatalogUrl(fireUrl);
+      })
+      .catch(() => {});
   };
 
   const handleSaveDetails = (e: React.FormEvent) => {
@@ -726,6 +768,16 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncToFirebase}
+            disabled={isSyncingFirebase}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold transition-all cursor-pointer shadow"
+            title="Sync all exhibition sections, artworks, awards, judges and patronages directly to Cloud Firestore"
+          >
+            <UploadCloud size={14} className={isSyncingFirebase ? 'animate-pulse' : ''} />
+            <span>{isSyncingFirebase ? 'Syncing...' : 'Sync to Firebase'}</span>
+          </button>
+
           {successMsg && (
             <div className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold animate-fadeIn">
               ✓ {successMsg}
@@ -1164,6 +1216,46 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                                 onChange={(e) => handleUpdateBulkItem(item.id, 'school', e.target.value)}
                                 placeholder="e.g. Rajapaksa Central College, Weeraketiya"
                                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-cyan-500/40 text-xs text-cyan-200 focus:outline-none"
+                              />
+                            </div>
+
+                            {/* 5. Image URL & Direct Firebase Storage Upload */}
+                            <div>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <label className="text-[11px] font-semibold text-slate-300">
+                                  Image URL / Cloud Storage
+                                </label>
+                                <label className="text-[10px] text-amber-300 hover:text-amber-200 cursor-pointer flex items-center gap-1 font-semibold">
+                                  <Upload size={10} /> Upload to Firebase
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      const reader = new FileReader();
+                                      reader.onload = (ev) => {
+                                        handleUpdateBulkItem(item.id, 'imageUrl', ev.target?.result as string);
+                                      };
+                                      reader.readAsDataURL(file);
+
+                                      uploadImageToStorage(file, 'photographs')
+                                        .then(fireUrl => {
+                                          handleUpdateBulkItem(item.id, 'imageUrl', fireUrl);
+                                          showBanner('Uploaded image to Firebase Storage!');
+                                        })
+                                        .catch(() => {});
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                              <input
+                                type="url"
+                                value={item.imageUrl}
+                                onChange={(e) => handleUpdateBulkItem(item.id, 'imageUrl', e.target.value)}
+                                placeholder="https://..."
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-[11px] text-slate-300 font-mono focus:outline-none focus:border-amber-400 truncate"
                               />
                             </div>
                           </div>
@@ -2252,13 +2344,50 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Image URL</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold">Photograph Image (URL or Upload)</label>
+                    <label className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all">
+                      <Upload size={11} /> Upload to Firebase Storage
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setEditingArtwork({ ...editingArtwork, imageUrl: ev.target?.result as string });
+                          };
+                          reader.readAsDataURL(file);
+
+                          uploadImageToStorage(file, 'photographs')
+                            .then(fireUrl => {
+                              setEditingArtwork(prev => prev ? { ...prev, imageUrl: fireUrl } : null);
+                              showBanner('Photograph uploaded to Firebase Storage!');
+                            })
+                            .catch(err => console.warn('Storage upload error:', err));
+                        }}
+                      />
+                    </label>
+                  </div>
                   <input
                     type="url"
                     value={editingArtwork.imageUrl}
                     onChange={(e) => setEditingArtwork({ ...editingArtwork, imageUrl: e.target.value })}
+                    placeholder="https://..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono"
                   />
+                  {editingArtwork.imageUrl && (
+                    <div className="mt-2 relative aspect-[16/9] rounded-xl overflow-hidden bg-black border border-slate-800">
+                      <img src={editingArtwork.imageUrl} alt="Preview" className="w-full h-full object-contain" />
+                      {editingArtwork.imageUrl.includes('firebasestorage') && (
+                        <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 font-mono font-bold">
+                          ☁ Firebase Cloud Storage
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
@@ -2690,13 +2819,52 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Profile Photo URL</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-300 font-semibold">Profile Photo (URL or Upload)</label>
+                  <label className="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all">
+                    <Upload size={10} /> Upload to Storage
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setEditingJudge({ ...editingJudge, imageUrl: ev.target?.result as string });
+                        };
+                        reader.readAsDataURL(file);
+
+                        uploadImageToStorage(file, 'judges')
+                          .then(fireUrl => {
+                            setEditingJudge(prev => prev ? { ...prev, imageUrl: fireUrl } : null);
+                            showBanner('Juror photo uploaded to Firebase Storage!');
+                          })
+                          .catch(() => {});
+                      }}
+                    />
+                  </label>
+                </div>
                 <input
                   type="url"
+                  placeholder="https://..."
                   value={editingJudge.imageUrl || ''}
                   onChange={(e) => setEditingJudge({ ...editingJudge, imageUrl: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono"
                 />
+                {editingJudge.imageUrl && (
+                  <div className="mt-2 flex items-center gap-2.5 p-2 rounded-xl bg-slate-950 border border-slate-800">
+                    <img
+                      src={editingJudge.imageUrl}
+                      alt={editingJudge.name}
+                      className="w-9 h-9 rounded-full object-cover border border-amber-400/40 shrink-0"
+                    />
+                    <span className="text-[11px] text-slate-400 truncate font-mono">
+                      {editingJudge.imageUrl}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
