@@ -3,6 +3,7 @@ import {
   X,
   Palette,
   PlusCircle,
+  Plus,
   Trash2,
   Check,
   Eye,
@@ -24,6 +25,11 @@ import {
   ExternalLink,
   ArrowLeft,
   FileDown,
+  Edit2,
+  Edit3,
+  GripVertical,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../store/exhibitionStore';
 import type {
@@ -78,6 +84,10 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
   const [singleImageUrlInput, setSingleImageUrlInput] = useState('');
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Drag and drop state for bulk uploading order
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   // Active section's defined awards
   const activeWing = wings.find(w => w.id === selectedSectionId) || wings[0];
   const sectionAwards: SectionAward[] = activeWing?.awards && activeWing.awards.length > 0
@@ -91,6 +101,57 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       ];
 
   const defaultAwardName = sectionAwards[0]?.name || '1st Place - Gold Award';
+
+  // Modal / Inline Edit States
+  const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null);
+  const [editingSection, setEditingSection] = useState<CategoryWing | null>(null);
+  const [editingSectionAward, setEditingSectionAward] = useState<{ wingId: string; award: SectionAward } | null>(null);
+  const [addingAwardWingId, setAddingAwardWingId] = useState<string | null>(null);
+  const [newSecAwardName, setNewSecAwardName] = useState('');
+  const [newSecAwardSpotlight, setNewSecAwardSpotlight] = useState('#ffd700');
+  const [newSecAwardPlaque, setNewSecAwardPlaque] = useState<'gold' | 'silver' | 'bronze' | 'slate'>('gold');
+
+  const [editingJudge, setEditingJudge] = useState<SalonJudge | null>(null);
+  const [editingPatronage, setEditingPatronage] = useState<PatronageOrg | null>(null);
+
+  const handleSectionChange = (newSecId: string) => {
+    setSelectedSectionId(newSecId);
+    const targetWing = wings.find(w => w.id === newSecId);
+    const targetAwards = targetWing?.awards && targetWing.awards.length > 0
+      ? targetWing.awards
+      : [
+          { id: 'def-1', name: '1st Place - Gold Award', spotlightColorHex: '#ffd700', plaqueStyle: 'gold' as const },
+          { id: 'def-2', name: '2nd Place - Silver Award', spotlightColorHex: '#e0e7ff', plaqueStyle: 'silver' as const },
+          { id: 'def-3', name: '3rd Place - Bronze Award', spotlightColorHex: '#f59e0b', plaqueStyle: 'bronze' as const },
+          { id: 'def-4', name: 'Merit Award', spotlightColorHex: '#fef08a', plaqueStyle: 'gold' as const },
+          { id: 'def-5', name: 'Salon Acceptance', spotlightColorHex: '#f8fafc', plaqueStyle: 'slate' as const },
+        ];
+    const targetDefaultAward = targetAwards[0]?.name || 'Salon Acceptance';
+
+    // Synchronize queued items to ensure award dropdown strictly belongs to the new section!
+    setBulkQueue(prev => prev.map(item => {
+      const exists = targetAwards.some(a => a.name === item.award);
+      return exists ? item : { ...item, award: targetDefaultAward };
+    }));
+  };
+
+  const handleDropReorder = (fromIndex: number | null, toIndex: number) => {
+    if (fromIndex === null || fromIndex === toIndex) return;
+    setBulkQueue(prev => {
+      const copy = [...prev];
+      const [movedItem] = copy.splice(fromIndex, 1);
+      copy.splice(toIndex, 0, movedItem);
+      return copy;
+    });
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleMoveItem = (index: number, direction: 'prev' | 'next') => {
+    const targetIndex = direction === 'prev' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= bulkQueue.length) return;
+    handleDropReorder(index, targetIndex);
+  };
 
   const handleBulkFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -850,7 +911,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                   <span className="text-xs font-semibold text-slate-300">Target Section:</span>
                   <select
                     value={selectedSectionId}
-                    onChange={(e) => setSelectedSectionId(e.target.value)}
+                    onChange={(e) => handleSectionChange(e.target.value)}
                     className="px-3 py-2 rounded-xl bg-slate-950 border border-amber-500/40 text-xs text-white font-medium focus:outline-none"
                   >
                     {wings.map(w => (
@@ -948,100 +1009,167 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {bulkQueue.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden flex flex-col justify-between shadow-lg"
-                      >
-                        {/* Thumbnail with Aspect Ratio Badge */}
-                        <div className="relative aspect-[4/3] bg-black overflow-hidden flex items-center justify-center">
-                          <img
-                            src={item.imageUrl}
-                            alt={item.title}
-                            className="w-full h-full object-contain"
-                          />
-                          <div className="absolute top-2 left-2 flex items-center gap-1">
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-950/85 text-amber-300 border border-amber-500/30 font-mono font-bold">
-                              {item.aspectRatio >= 1.2
-                                ? `Landscape (${item.aspectRatio}:1)`
-                                : item.aspectRatio < 0.85
-                                ? `Portrait (${item.aspectRatio}:1)`
-                                : `Square (${item.aspectRatio}:1)`}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveBulkItem(item.id)}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
-                            title="Remove"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
+                    {bulkQueue.map((item, idx) => {
+                      const isDragging = draggedIndex === idx;
+                      const isDragOver = dragOverIndex === idx;
 
-                        {/* Inline Form Fields (ONLY 4 required details) */}
-                        <div className="p-3.5 space-y-2.5 text-xs">
-                          {/* 1. Photograph Title */}
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-300 mb-0.5">
-                              Photograph Title *
-                            </label>
-                            <input
-                              type="text"
-                              value={item.title}
-                              onChange={(e) => handleUpdateBulkItem(item.id, 'title', e.target.value)}
-                              placeholder="Title of photograph"
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
-                            />
-                          </div>
-
-                          {/* 2. Award (From Section Defined Awards) */}
-                          <div>
-                            <label className="block text-[11px] font-semibold text-amber-300 mb-0.5">
-                              Award / Ranking *
-                            </label>
-                            <select
-                              value={item.award}
-                              onChange={(e) => handleUpdateBulkItem(item.id, 'award', e.target.value)}
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-amber-500/40 text-xs text-amber-200 font-semibold focus:outline-none"
+                      return (
+                        <div
+                          key={item.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', String(idx));
+                            setDraggedIndex(idx);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDragOverIndex(idx);
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverIndex === idx) setDragOverIndex(null);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDropReorder(draggedIndex, idx);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedIndex(null);
+                            setDragOverIndex(null);
+                          }}
+                          className={`rounded-2xl bg-slate-900 border overflow-hidden flex flex-col justify-between shadow-lg transition-all ${
+                            isDragging
+                              ? 'opacity-40 scale-95 border-dashed border-amber-400'
+                              : isDragOver
+                              ? 'ring-2 ring-amber-400 bg-amber-500/10 scale-102 border-amber-400'
+                              : 'border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          {/* Top Reorder Header */}
+                          <div className="px-3 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+                            <div
+                              className="flex items-center gap-1.5 cursor-grab active:cursor-grabbing text-slate-400 hover:text-white"
+                              title="Drag and drop to reorder gallery sequence"
                             >
-                              {sectionAwards.map(aw => (
-                                <option key={aw.id} value={aw.name}>
-                                  {aw.name} ({aw.plaqueStyle} plaque)
-                                </option>
-                              ))}
-                            </select>
+                              <GripVertical size={14} className="text-amber-400" />
+                              <span className="text-[11px] font-mono font-bold text-amber-300">
+                                #{idx + 1}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMoveItem(idx, 'prev')}
+                                className="p-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-25 disabled:cursor-not-allowed text-slate-300 transition-colors"
+                                title="Move Left / Earlier"
+                              >
+                                <ChevronLeft size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === bulkQueue.length - 1}
+                                onClick={() => handleMoveItem(idx, 'next')}
+                                className="p-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-25 disabled:cursor-not-allowed text-slate-300 transition-colors"
+                                title="Move Right / Later"
+                              >
+                                <ChevronRight size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveBulkItem(item.id)}
+                                className="p-1 ml-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-950/40 transition-colors cursor-pointer"
+                                title="Remove"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
                           </div>
 
-                          {/* 3. Photographer Name */}
-                          <div>
-                            <label className="block text-[11px] font-semibold text-slate-300 mb-0.5">
-                              Photographer Name *
-                            </label>
-                            <input
-                              type="text"
-                              value={item.photographer}
-                              onChange={(e) => handleUpdateBulkItem(item.id, 'photographer', e.target.value)}
-                              placeholder="e.g. Seniru Jayawardena"
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
+                          {/* Thumbnail with Aspect Ratio Badge */}
+                          <div className="relative aspect-[4/3] bg-black overflow-hidden flex items-center justify-center">
+                            <img
+                              src={item.imageUrl}
+                              alt={item.title}
+                              className="w-full h-full object-contain pointer-events-none"
                             />
+                            <div className="absolute top-2 left-2 flex items-center gap-1">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-950/85 text-amber-300 border border-amber-500/30 font-mono font-bold">
+                                {item.aspectRatio >= 1.2
+                                  ? `Landscape (${item.aspectRatio}:1)`
+                                  : item.aspectRatio < 0.85
+                                  ? `Portrait (${item.aspectRatio}:1)`
+                                  : `Square (${item.aspectRatio}:1)`}
+                              </span>
+                            </div>
                           </div>
 
-                          {/* 4. School */}
-                          <div>
-                            <label className="block text-[11px] font-semibold text-cyan-300 mb-0.5">
-                              School / Institution *
-                            </label>
-                            <input
-                              type="text"
-                              value={item.school}
-                              onChange={(e) => handleUpdateBulkItem(item.id, 'school', e.target.value)}
-                              placeholder="e.g. Rajapaksa Central College, Weeraketiya"
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-cyan-500/40 text-xs text-cyan-200 focus:outline-none"
-                            />
+                          {/* Inline Form Fields (ONLY 4 required details) */}
+                          <div className="p-3.5 space-y-2.5 text-xs">
+                            {/* 1. Photograph Title */}
+                            <div>
+                              <label className="block text-[11px] font-semibold text-slate-300 mb-0.5">
+                                Photograph Title *
+                              </label>
+                              <input
+                                type="text"
+                                value={item.title}
+                                onChange={(e) => handleUpdateBulkItem(item.id, 'title', e.target.value)}
+                                placeholder="Title of photograph"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+
+                            {/* 2. Award (From Section Defined Awards ONLY) */}
+                            <div>
+                              <label className="block text-[11px] font-semibold text-amber-300 mb-0.5">
+                                Award / Ranking * ({activeWing?.name})
+                              </label>
+                              <select
+                                value={item.award}
+                                onChange={(e) => handleUpdateBulkItem(item.id, 'award', e.target.value)}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-amber-500/40 text-xs text-amber-200 font-semibold focus:outline-none"
+                              >
+                                {sectionAwards.map(aw => (
+                                  <option key={aw.id} value={aw.name}>
+                                    {aw.name} ({aw.plaqueStyle} plaque)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* 3. Photographer Name */}
+                            <div>
+                              <label className="block text-[11px] font-semibold text-slate-300 mb-0.5">
+                                Photographer Name *
+                              </label>
+                              <input
+                                type="text"
+                                value={item.photographer}
+                                onChange={(e) => handleUpdateBulkItem(item.id, 'photographer', e.target.value)}
+                                placeholder="e.g. Seniru Jayawardena"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+
+                            {/* 4. School */}
+                            <div>
+                              <label className="block text-[11px] font-semibold text-cyan-300 mb-0.5">
+                                School / Institution *
+                              </label>
+                              <input
+                                type="text"
+                                value={item.school}
+                                onChange={(e) => handleUpdateBulkItem(item.id, 'school', e.target.value)}
+                                placeholder="e.g. Rajapaksa Central College, Weeraketiya"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-cyan-500/40 text-xs text-cyan-200 focus:outline-none"
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="flex justify-end pt-4">
@@ -1123,8 +1251,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                   return (
                     <div
                       key={art.id}
-                      onClick={() => handleToggleSelectArt(art.id)}
-                      className={`p-3 rounded-2xl bg-slate-900 border transition-all cursor-pointer flex flex-col justify-between ${
+                      className={`p-3 rounded-2xl bg-slate-900 border transition-all flex flex-col justify-between ${
                         isSelected
                           ? 'border-amber-400 bg-slate-900/90 shadow-md shadow-amber-500/10'
                           : 'border-slate-800 hover:border-slate-700'
@@ -1132,13 +1259,43 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                     >
                       <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-black mb-2">
                         <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover" />
-                        <div className="absolute top-2 left-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectArt(art.id)}
+                          className="absolute top-2 left-2 p-1 rounded-md bg-black/60 hover:bg-black/80 text-white cursor-pointer transition-colors"
+                          title={isSelected ? 'Deselect' : 'Select for Bulk Delete'}
+                        >
                           {isSelected ? (
-                            <CheckSquare size={18} className="text-amber-400 drop-shadow" />
+                            <CheckSquare size={16} className="text-amber-400 drop-shadow" />
                           ) : (
-                            <Square size={18} className="text-white/70 drop-shadow" />
+                            <Square size={16} className="text-white/80 drop-shadow" />
                           )}
+                        </button>
+
+                        <div className="absolute top-2 right-2 flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditingArtwork(art)}
+                            className="p-1.5 rounded-lg bg-black/70 hover:bg-amber-500 text-slate-300 hover:text-slate-950 transition-colors cursor-pointer"
+                            title="Edit Photograph Details"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Permanently delete artwork "${art.title}" by ${art.photographer}?`)) {
+                                exhibitionStore.deleteArtwork(art.id);
+                                showBanner(`Deleted "${art.title}"!`);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg bg-black/70 hover:bg-red-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                            title="Delete Photograph"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
+
                         <span className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full bg-slate-950/80 text-amber-300 font-bold border border-amber-500/30 truncate max-w-[85%]">
                           {art.place || art.awardTier}
                         </span>
@@ -1148,6 +1305,9 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                         <h4 className="font-bold text-white truncate">{art.title}</h4>
                         <p className="text-amber-300 text-[11px] font-semibold truncate">{art.photographer}</p>
                         <p className="text-cyan-300 text-[10px] truncate">{art.school}</p>
+                        <span className="text-[10px] text-slate-500 font-mono block mt-1">
+                          Section: {wings.find(w => w.id === art.category)?.name || art.category}
+                        </span>
                       </div>
                     </div>
                   );
@@ -1321,38 +1481,116 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
               {/* Existing Sections List */}
               <div className="space-y-3">
                 <span className="text-xs font-bold text-slate-300 block">Existing Sections ({wings.length})</span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {wings.map(wing => (
                     <div
                       key={wing.id}
                       className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between"
                     >
+                      {/* Section Info & Edit/Delete Controls */}
                       <div>
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center justify-between mb-1.5">
                           <h4 className="font-bold text-sm text-white flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: wing.colorHex }} />
+                            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: wing.colorHex }} />
                             {wing.name}
                           </h4>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            Z: {wing.zStart}m - {wing.zEnd}m
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-slate-400 font-mono mr-1">
+                              Z: {wing.zStart}m - {wing.zEnd}m
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingSection(wing)}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500 text-slate-300 hover:text-slate-950 transition-colors cursor-pointer"
+                              title="Edit Section Details"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Permanently delete section "${wing.name}"?`)) {
+                                  exhibitionStore.deleteCategoryWing(wing.id);
+                                  showBanner(`Section "${wing.name}" deleted!`);
+                                }
+                              }}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                              title="Delete Section"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-400 mb-2">{wing.description}</p>
+                        <p className="text-xs text-slate-400 mb-3">{wing.description}</p>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-800">
-                        <span className="text-[11px] font-semibold text-amber-300 block mb-1">
-                          Defined Awards ({wing.awards?.length || 0}):
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {wing.awards?.map(a => (
-                            <span
-                              key={a.id}
-                              className="text-[10px] px-2 py-0.5 rounded bg-slate-950 text-slate-300 border border-slate-800"
-                            >
-                              🏆 {a.name}
+                      {/* Section-Specific Awards Management */}
+                      <div className="pt-3 border-t border-slate-800">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] font-semibold text-amber-300">
+                            Defined Awards ({wing.awards?.length || 0}):
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingAwardWingId(wing.id);
+                              setNewSecAwardName('');
+                              setNewSecAwardSpotlight('#ffd700');
+                              setNewSecAwardPlaque('gold');
+                            }}
+                            className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus size={11} /> + Add Award
+                          </button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {wing.awards && wing.awards.length > 0 ? (
+                            wing.awards.map(a => (
+                              <div
+                                key={a.id}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full border border-white/20 shrink-0"
+                                    style={{ backgroundColor: a.spotlightColorHex }}
+                                  />
+                                  <span className="text-white font-medium">{a.name}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono capitalize">
+                                    ({a.plaqueStyle} plaque)
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingSectionAward({ wingId: wing.id, award: { ...a } })}
+                                    className="p-1 text-slate-400 hover:text-amber-400 cursor-pointer"
+                                    title="Edit Award"
+                                  >
+                                    <Edit2 size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm(`Remove award "${a.name}" from "${wing.name}"?`)) {
+                                        exhibitionStore.deleteSectionAward(wing.id, a.id);
+                                        showBanner(`Award "${a.name}" deleted from section!`);
+                                      }
+                                    }}
+                                    className="p-1 text-slate-500 hover:text-red-400 cursor-pointer"
+                                    title="Delete Award"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-[11px] text-slate-500 italic block">
+                              No awards defined yet for this section.
                             </span>
-                          ))}
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1496,12 +1734,28 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                         <p className="text-[11px] text-slate-500 italic">{judge.role}</p>
                       </div>
 
-                      <button
-                        onClick={() => exhibitionStore.deleteJudge(judge.id)}
-                        className="w-full py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                      >
-                        <Trash2 size={13} /> Remove Judge
-                      </button>
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => setEditingJudge({ ...judge })}
+                          className="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit2 size={13} /> Edit Profile
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Remove juror profile "${judge.name}"?`)) {
+                              exhibitionStore.deleteJudge(judge.id);
+                              showBanner(`Removed judge "${judge.name}"!`);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          title="Remove Judge"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1587,13 +1841,29 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => exhibitionStore.deletePatronageOrg(pat.id)}
-                        className="p-2 text-slate-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
-                        title="Delete"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditingPatronage({ ...pat })}
+                          className="p-2 text-slate-400 hover:text-amber-400 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                          title="Edit Patronage"
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Delete patronage for "${pat.organization}"?`)) {
+                              exhibitionStore.deletePatronageOrg(pat.id);
+                              showBanner(`Patronage for "${pat.organization}" removed!`);
+                            }
+                          }}
+                          className="p-2 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                          title="Delete Patronage"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1794,6 +2064,21 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                         </div>
                         <p className="text-xs text-slate-300 mt-1">{entry.message}</p>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete signature from "${entry.author}"?`)) {
+                            exhibitionStore.deleteGuestbookEntry(entry.id);
+                            showBanner(`Guestbook signature deleted!`);
+                          }
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer shrink-0"
+                        title="Delete Signature"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   );
                 })}
@@ -1844,6 +2129,666 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
           )}
         </main>
       </div>
+
+      {/* ========================================================= */}
+      {/* MODAL 1: EDIT ARTWORK (Strict Category-Filtered Awards)  */}
+      {/* ========================================================= */}
+      {editingArtwork && (() => {
+        const artWing = wings.find(w => w.id === editingArtwork.category) || wings[0];
+        const artAwards = artWing?.awards && artWing.awards.length > 0
+          ? artWing.awards
+          : [
+              { id: 'def-1', name: '1st Place - Gold Award', spotlightColorHex: '#ffd700', plaqueStyle: 'gold' as const },
+              { id: 'def-2', name: '2nd Place - Silver Award', spotlightColorHex: '#e0e7ff', plaqueStyle: 'silver' as const },
+              { id: 'def-3', name: '3rd Place - Bronze Award', spotlightColorHex: '#f59e0b', plaqueStyle: 'bronze' as const },
+              { id: 'def-4', name: 'Merit Award', spotlightColorHex: '#fef08a', plaqueStyle: 'gold' as const },
+              { id: 'def-5', name: 'Salon Acceptance', spotlightColorHex: '#f8fafc', plaqueStyle: 'slate' as const },
+            ];
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-slate-900 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <Edit3 size={18} className="text-amber-400" />
+                  <h3 className="font-serif font-bold text-base text-white">Edit Photograph Details</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingArtwork(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  exhibitionStore.updateArtwork(editingArtwork);
+                  setEditingArtwork(null);
+                  showBanner(`Updated "${editingArtwork.title}" successfully!`);
+                }}
+                className="space-y-3 text-xs"
+              >
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Photograph Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingArtwork.title}
+                    onChange={(e) => setEditingArtwork({ ...editingArtwork, title: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Photographer Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingArtwork.photographer}
+                      onChange={(e) => setEditingArtwork({ ...editingArtwork, photographer: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-cyan-300 font-semibold mb-1">School / Institution</label>
+                    <input
+                      type="text"
+                      value={editingArtwork.school || ''}
+                      onChange={(e) => setEditingArtwork({ ...editingArtwork, school: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-cyan-500/40 text-cyan-200 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Section / Category *</label>
+                    <select
+                      value={editingArtwork.category}
+                      onChange={(e) => {
+                        const newCat = e.target.value;
+                        const targetWing = wings.find(w => w.id === newCat);
+                        const targetAwards = targetWing?.awards && targetWing.awards.length > 0 ? targetWing.awards : artAwards;
+                        const newAward = targetAwards[0]?.name || 'Salon Acceptance';
+                        setEditingArtwork({
+                          ...editingArtwork,
+                          category: newCat,
+                          place: newAward,
+                          awardTier: newAward,
+                        });
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                    >
+                      {wings.map(w => (
+                        <option key={w.id} value={w.id}>{w.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-amber-300 font-semibold mb-1">
+                      Award / Ranking * ({artWing.name})
+                    </label>
+                    <select
+                      value={editingArtwork.place || editingArtwork.awardTier}
+                      onChange={(e) => setEditingArtwork({
+                        ...editingArtwork,
+                        place: e.target.value,
+                        awardTier: e.target.value,
+                      })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-amber-500/40 text-amber-200 font-semibold focus:outline-none"
+                    >
+                      {artAwards.map(aw => (
+                        <option key={aw.id} value={aw.name}>
+                          {aw.name} ({aw.plaqueStyle} plaque)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Image URL</label>
+                  <input
+                    type="url"
+                    value={editingArtwork.imageUrl}
+                    onChange={(e) => setEditingArtwork({ ...editingArtwork, imageUrl: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setEditingArtwork(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 text-xs font-bold shadow cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================= */}
+      {/* MODAL 2: EDIT SECTION                                      */}
+      {/* ========================================================= */}
+      {editingSection && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 size={18} className="text-amber-400" />
+                <h3 className="font-serif font-bold text-base text-white">Edit Gallery Section</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSection(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                exhibitionStore.updateCategoryWing(editingSection);
+                setEditingSection(null);
+                showBanner(`Section "${editingSection.name}" updated!`);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Section Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSection.name}
+                  onChange={(e) => setEditingSection({ ...editingSection, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Accent Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={editingSection.colorHex}
+                    onChange={(e) => setEditingSection({ ...editingSection, colorHex: e.target.value })}
+                    className="w-10 h-8 rounded-lg bg-transparent border-0 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={editingSection.colorHex}
+                    onChange={(e) => setEditingSection({ ...editingSection, colorHex: e.target.value })}
+                    className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={editingSection.description}
+                  onChange={(e) => setEditingSection({ ...editingSection, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingSection(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 text-xs font-bold shadow cursor-pointer"
+                >
+                  Save Section
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 3: EDIT SECTION AWARD                                */}
+      {/* ========================================================= */}
+      {editingSectionAward && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Award size={18} className="text-amber-400" />
+                <h3 className="font-serif font-bold text-base text-white">Edit Section Award</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSectionAward(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                exhibitionStore.updateSectionAward(editingSectionAward.wingId, editingSectionAward.award);
+                setEditingSectionAward(null);
+                showBanner(`Award "${editingSectionAward.award.name}" updated!`);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Award Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSectionAward.award.name}
+                  onChange={(e) => setEditingSectionAward({
+                    ...editingSectionAward,
+                    award: { ...editingSectionAward.award, name: e.target.value }
+                  })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Spotlight Illumination Color</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={editingSectionAward.award.spotlightColorHex}
+                    onChange={(e) => setEditingSectionAward({
+                      ...editingSectionAward,
+                      award: { ...editingSectionAward.award, spotlightColorHex: e.target.value }
+                    })}
+                    className="w-10 h-8 rounded-lg bg-transparent border-0 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={editingSectionAward.award.spotlightColorHex}
+                    onChange={(e) => setEditingSectionAward({
+                      ...editingSectionAward,
+                      award: { ...editingSectionAward.award, spotlightColorHex: e.target.value }
+                    })}
+                    className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {[
+                    { label: 'Gold', hex: '#ffd700' },
+                    { label: 'Silver', hex: '#e0e7ff' },
+                    { label: 'Bronze', hex: '#f59e0b' },
+                    { label: 'White', hex: '#f8fafc' },
+                  ].map(p => (
+                    <button
+                      key={p.hex}
+                      type="button"
+                      onClick={() => setEditingSectionAward({
+                        ...editingSectionAward,
+                        award: { ...editingSectionAward.award, spotlightColorHex: p.hex }
+                      })}
+                      className="px-2 py-0.5 rounded text-[10px] bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 cursor-pointer"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Plaque Style</label>
+                <select
+                  value={editingSectionAward.award.plaqueStyle}
+                  onChange={(e) => setEditingSectionAward({
+                    ...editingSectionAward,
+                    award: { ...editingSectionAward.award, plaqueStyle: e.target.value as any }
+                  })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
+                >
+                  <option value="gold">Gold Plaque</option>
+                  <option value="silver">Silver Plaque</option>
+                  <option value="bronze">Bronze Plaque</option>
+                  <option value="slate">Slate Plaque</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingSectionAward(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 text-xs font-bold shadow cursor-pointer"
+                >
+                  Save Award
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 4: ADD AWARD TO EXISTING SECTION                    */}
+      {/* ========================================================= */}
+      {addingAwardWingId && (() => {
+        const targetWing = wings.find(w => w.id === addingAwardWingId);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <PlusCircle size={18} className="text-amber-400" />
+                  <h3 className="font-serif font-bold text-base text-white">
+                    Add Award to "{targetWing?.name}"
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddingAwardWingId(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newSecAwardName.trim()) return;
+                  const newAward: SectionAward = {
+                    id: `sec-aw-${Date.now()}`,
+                    name: newSecAwardName.trim(),
+                    spotlightColorHex: newSecAwardSpotlight,
+                    plaqueStyle: newSecAwardPlaque,
+                  };
+                  exhibitionStore.addAwardToSection(addingAwardWingId, newAward);
+                  setAddingAwardWingId(null);
+                  setNewSecAwardName('');
+                  showBanner(`Added award "${newAward.name}" to "${targetWing?.name}"!`);
+                }}
+                className="space-y-3 text-xs"
+              >
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Award Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Best Portrait Award, Special Merit"
+                    value={newSecAwardName}
+                    onChange={(e) => setNewSecAwardName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Spotlight Color</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={newSecAwardSpotlight}
+                      onChange={(e) => setNewSecAwardSpotlight(e.target.value)}
+                      className="w-10 h-8 rounded-lg bg-transparent border-0 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={newSecAwardSpotlight}
+                      onChange={(e) => setNewSecAwardSpotlight(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {[
+                      { label: 'Gold', hex: '#ffd700' },
+                      { label: 'Silver', hex: '#e0e7ff' },
+                      { label: 'Bronze', hex: '#f59e0b' },
+                      { label: 'White', hex: '#f8fafc' },
+                    ].map(p => (
+                      <button
+                        key={p.hex}
+                        type="button"
+                        onClick={() => setNewSecAwardSpotlight(p.hex)}
+                        className="px-2 py-0.5 rounded text-[10px] bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 cursor-pointer"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Plaque Style</label>
+                  <select
+                    value={newSecAwardPlaque}
+                    onChange={(e) => setNewSecAwardPlaque(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
+                  >
+                    <option value="gold">Gold Plaque</option>
+                    <option value="silver">Silver Plaque</option>
+                    <option value="bronze">Bronze Plaque</option>
+                    <option value="slate">Slate Plaque</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setAddingAwardWingId(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 text-xs font-bold shadow cursor-pointer"
+                  >
+                    + Add Award
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================= */}
+      {/* MODAL 5: EDIT JUDGE PROFILE                                */}
+      {/* ========================================================= */}
+      {editingJudge && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Users size={18} className="text-amber-400" />
+                <h3 className="font-serif font-bold text-base text-white">Edit Juror Profile</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingJudge(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                exhibitionStore.updateJudge(editingJudge);
+                setEditingJudge(null);
+                showBanner(`Juror profile for "${editingJudge.name}" updated!`);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Juror Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingJudge.name}
+                  onChange={(e) => setEditingJudge({ ...editingJudge, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Country *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingJudge.country}
+                    onChange={(e) => setEditingJudge({ ...editingJudge, country: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Juror Role</label>
+                  <input
+                    type="text"
+                    value={editingJudge.role || ''}
+                    onChange={(e) => setEditingJudge({ ...editingJudge, role: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Honors & Distinctions</label>
+                <input
+                  type="text"
+                  value={editingJudge.honors}
+                  onChange={(e) => setEditingJudge({ ...editingJudge, honors: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Profile Photo URL</label>
+                <input
+                  type="url"
+                  value={editingJudge.imageUrl || ''}
+                  onChange={(e) => setEditingJudge({ ...editingJudge, imageUrl: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingJudge(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 text-xs font-bold shadow cursor-pointer"
+                >
+                  Save Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 6: EDIT PATRONAGE ENTRY                             */}
+      {/* ========================================================= */}
+      {editingPatronage && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className="text-amber-400" />
+                <h3 className="font-serif font-bold text-base text-white">Edit Patronage Entry</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingPatronage(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                exhibitionStore.updatePatronageOrg(editingPatronage);
+                setEditingPatronage(null);
+                showBanner(`Patronage for "${editingPatronage.organization}" updated!`);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Organization Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPatronage.organization}
+                  onChange={(e) => setEditingPatronage({ ...editingPatronage, organization: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono uppercase focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Patronage Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPatronage.patronageNumber}
+                  onChange={(e) => setEditingPatronage({ ...editingPatronage, patronageNumber: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingPatronage(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 text-xs font-bold shadow cursor-pointer"
+                >
+                  Save Patronage
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

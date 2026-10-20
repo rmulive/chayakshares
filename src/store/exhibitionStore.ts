@@ -6,6 +6,7 @@ import type {
   GuestbookEntry,
   AdminUser,
   AwardDefinition,
+  SectionAward,
   SalonInfo,
   PatronageOrg,
   SalonJudge,
@@ -462,6 +463,57 @@ export const exhibitionStore = {
     notify();
   },
 
+  addAwardToSection: (wingId: string, award: SectionAward) => {
+    const updatedWings = state.wings.map(wing => {
+      if (wing.id !== wingId) return wing;
+      const currentAwards = wing.awards || [];
+      return {
+        ...wing,
+        awards: [...currentAwards, award],
+      };
+    });
+    state.wings = updatedWings;
+    try {
+      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updatedWings));
+      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updatedWings });
+    } catch (_) {}
+    notify();
+  },
+
+  updateSectionAward: (wingId: string, updatedAward: SectionAward) => {
+    const updatedWings = state.wings.map(wing => {
+      if (wing.id !== wingId) return wing;
+      const currentAwards = wing.awards || [];
+      return {
+        ...wing,
+        awards: currentAwards.map(a => a.id === updatedAward.id ? updatedAward : a),
+      };
+    });
+    state.wings = updatedWings;
+    try {
+      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updatedWings));
+      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updatedWings });
+    } catch (_) {}
+    notify();
+  },
+
+  deleteSectionAward: (wingId: string, awardId: string) => {
+    const updatedWings = state.wings.map(wing => {
+      if (wing.id !== wingId) return wing;
+      const currentAwards = wing.awards || [];
+      return {
+        ...wing,
+        awards: currentAwards.filter(a => a.id !== awardId),
+      };
+    });
+    state.wings = updatedWings;
+    try {
+      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updatedWings));
+      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updatedWings });
+    } catch (_) {}
+    notify();
+  },
+
   // Salon Details & Metadata
   updateSalonInfo: (info: Partial<SalonInfo>) => {
     const updated: SalonInfo = {
@@ -510,6 +562,21 @@ export const exhibitionStore = {
     notify();
   },
 
+  updatePatronageOrg: (org: PatronageOrg) => {
+    const currentList = state.salonInfo.patronageList || [];
+    const updatedList = currentList.map(o => o.id === org.id ? org : o);
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      patronageList: updatedList,
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
   deletePatronageOrg: (id: string) => {
     const currentList = state.salonInfo.patronageList || [];
     const updatedList = currentList.filter(o => o.id !== id);
@@ -529,6 +596,21 @@ export const exhibitionStore = {
   addJudge: (judge: SalonJudge) => {
     const currentJudges = state.salonInfo.judges || [];
     const updatedJudges = [...currentJudges, judge];
+    const updated: SalonInfo = {
+      ...state.salonInfo,
+      judges: updatedJudges,
+    };
+    state.salonInfo = updated;
+    try {
+      localStorage.setItem(STORAGE_KEY_SALON_INFO, JSON.stringify(updated));
+      broadcast?.postMessage({ type: 'SYNC_SALON_INFO', payload: updated });
+    } catch (_) {}
+    notify();
+  },
+
+  updateJudge: (judge: SalonJudge) => {
+    const currentJudges = state.salonInfo.judges || [];
+    const updatedJudges = currentJudges.map(j => j.id === judge.id ? judge : j);
     const updated: SalonInfo = {
       ...state.salonInfo,
       judges: updatedJudges,
