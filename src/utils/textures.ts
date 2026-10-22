@@ -235,7 +235,9 @@ export function getFloorTexture(theme: GalleryTheme): THREE.CanvasTexture {
 }
 
 /**
- * Creates metallic plaque canvas texture with Name, Place, School, and Camera Data
+ * Creates metallic museum plaque canvas texture with Name, Place, School, and Award
+ * Ultra-high-definition (2048x512, 4:1 ratio) with crisp typography, maximum contrast,
+ * and zero vertical distortion.
  */
 export function createPlaqueTexture(
   title: string,
@@ -246,156 +248,174 @@ export function createPlaqueTexture(
   school?: string
 ): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 560;
+  // 4:1 ratio strictly matching 3D plaque plane geometry (2.4m x 0.6m)
+  canvas.width = 2048;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d')!;
 
-  const isGold = (place || award).toLowerCase().includes('gold') || (place || award).toLowerCase().includes('best of show') || (place || award).toLowerCase().includes('1st');
-  const isSilver = (place || award).toLowerCase().includes('silver') || (place || award).toLowerCase().includes('2nd');
-  const isBronze = (place || award).toLowerCase().includes('bronze') || (place || award).toLowerCase().includes('3rd');
+  const lowerAward = `${place || ''} ${award || ''}`.toLowerCase();
+  const isGold = lowerAward.includes('gold') || lowerAward.includes('best of show') || lowerAward.includes('1st') || lowerAward.includes('trophy');
+  const isSilver = lowerAward.includes('silver') || lowerAward.includes('2nd');
+  const isBronze = lowerAward.includes('bronze') || lowerAward.includes('3rd');
 
   if (isAward || isGold || isSilver || isBronze) {
-    // 1. Brushed Metallic Plaque Background
-    const grad = ctx.createLinearGradient(0, 0, 1024, 560);
+    // 1. High-Luminance Metallic Plaque Background
+    const grad = ctx.createLinearGradient(0, 0, 2048, 512);
     if (isSilver) {
-      grad.addColorStop(0, '#f8fafc');
-      grad.addColorStop(0.3, '#cbd5e1');
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, '#f1f5f9');
       grad.addColorStop(0.7, '#e2e8f0');
-      grad.addColorStop(1, '#94a3b8');
+      grad.addColorStop(1, '#cbd5e1');
     } else if (isBronze) {
-      grad.addColorStop(0, '#fed7aa');
-      grad.addColorStop(0.3, '#d97706');
-      grad.addColorStop(0.7, '#b45309');
-      grad.addColorStop(1, '#78350f');
+      grad.addColorStop(0, '#fff7ed');
+      grad.addColorStop(0.3, '#fed7aa');
+      grad.addColorStop(0.7, '#fdba74');
+      grad.addColorStop(1, '#ea580c');
     } else {
-      // 24K Radiant Polished Gold
-      grad.addColorStop(0, '#fef08a');
-      grad.addColorStop(0.2, '#facc15');
-      grad.addColorStop(0.5, '#eab308');
-      grad.addColorStop(0.8, '#ca8a04');
-      grad.addColorStop(1, '#92400e');
+      // 24K Radiant Polished High-Contrast Gold (bright background for maximum text contrast)
+      grad.addColorStop(0, '#fef9c3');
+      grad.addColorStop(0.25, '#fef08a');
+      grad.addColorStop(0.6, '#fde047');
+      grad.addColorStop(0.85, '#eab308');
+      grad.addColorStop(1, '#ca8a04');
     }
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1024, 560);
+    ctx.fillRect(0, 0, 2048, 512);
 
-    // Bevel outer & inner border
-    ctx.strokeStyle = isSilver ? '#ffffff' : (isBronze ? '#ffedd5' : '#fef9c3');
-    ctx.lineWidth = 10;
-    ctx.strokeRect(10, 10, 1004, 540);
+    // Bevel borders
+    ctx.strokeStyle = isSilver ? '#ffffff' : (isBronze ? '#ffedd5' : '#ffffff');
+    ctx.lineWidth = 14;
+    ctx.strokeRect(10, 10, 2028, 492);
 
-    ctx.strokeStyle = isSilver ? '#475569' : (isBronze ? '#451a03' : '#713f12');
-    ctx.lineWidth = 3;
-    ctx.strokeRect(22, 22, 980, 516);
+    ctx.strokeStyle = isSilver ? '#475569' : (isBronze ? '#7c2d12' : '#854d0e');
+    ctx.lineWidth = 4;
+    ctx.strokeRect(26, 26, 1996, 460);
 
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-    // 1. PLACE & AWARD TIER (Prominently Highlighted)
-    const displayPlace = place ? place.toUpperCase() : award.toUpperCase();
-    ctx.fillStyle = isSilver ? '#0f172a' : (isBronze ? '#2e1065' : '#3b1c06');
+    // 1. PLACE & AWARD TIER (Prominently Highlighted with Stars)
+    const displayPlace = (place ? place : award).toUpperCase();
+    ctx.fillStyle = isSilver ? '#0f172a' : (isBronze ? '#431407' : '#422006');
     ctx.font = 'bold 36px "Cinzel", Georgia, serif';
-    ctx.fillText(`★  ${displayPlace}  ★`, 512, 85);
+    ctx.letterSpacing = '3px';
+    ctx.fillText(`★   ${displayPlace}   ★`, 1024, 76);
 
     // Header divider
-    ctx.strokeStyle = isSilver ? 'rgba(71, 85, 105, 0.4)' : (isBronze ? 'rgba(69, 26, 3, 0.4)' : 'rgba(113, 63, 18, 0.45)');
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(180, 115);
-    ctx.lineTo(844, 115);
-    ctx.stroke();
-
-    // 2. PHOTO TITLE (Prominently Displayed in large serif italics)
-    ctx.font = 'italic bold 52px "Cinzel", Georgia, serif';
-    ctx.fillStyle = isSilver ? '#020617' : (isBronze ? '#1c1917' : '#1c1917');
-    ctx.fillText(`"${title}"`, 512, 205);
-
-    // 3. PHOTOGRAPHER NAME (Prominently Highlighted)
-    ctx.font = 'bold 42px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = isSilver ? '#1e293b' : (isBronze ? '#381604' : '#451a03');
-    ctx.fillText(photographer.toUpperCase(), 512, 305);
-
-    // 4. SCHOOL / INSTITUTION (Prominently Highlighted)
-    ctx.font = '600 32px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = isSilver ? '#334155' : (isBronze ? '#522108' : '#78350f');
-    const schoolText = school || 'Rajapaksa Central College, Weeraketiya';
-    ctx.fillText(schoolText, 512, 390);
-
-    // Accent line
-    ctx.strokeStyle = isSilver ? '#64748b' : (isBronze ? '#b45309' : '#ca8a04');
+    ctx.strokeStyle = isSilver ? 'rgba(71, 85, 105, 0.45)' : (isBronze ? 'rgba(124, 45, 18, 0.45)' : 'rgba(133, 77, 14, 0.5)');
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(160, 430);
-    ctx.lineTo(864, 430);
+    ctx.moveTo(350, 108);
+    ctx.lineTo(1698, 108);
+    ctx.stroke();
+
+    // 2. PHOTO TITLE (Large, Deep Obsidian Black, High-Contrast)
+    ctx.font = 'italic bold 64px "Cinzel", Georgia, serif';
+    ctx.fillStyle = isSilver ? '#020617' : (isBronze ? '#1c1917' : '#0a0a0a');
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(`"${title}"`, 1024, 196);
+    ctx.shadowColor = 'transparent';
+
+    // 3. PHOTOGRAPHER NAME (Bold, Clean, Extra Legible)
+    ctx.font = 'bold 48px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = isSilver ? '#0f172a' : (isBronze ? '#271006' : '#1c1917');
+    ctx.fillText(photographer.toUpperCase(), 1024, 298);
+
+    // 4. SCHOOL / INSTITUTION
+    ctx.font = 'bold 34px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = isSilver ? '#334155' : (isBronze ? '#7c2d12' : '#713f12');
+    const schoolText = school || 'Rajapaksa Central College, Weeraketiya';
+    ctx.fillText(schoolText, 1024, 384);
+
+    // Accent footer line
+    ctx.strokeStyle = isSilver ? 'rgba(71, 85, 105, 0.35)' : (isBronze ? 'rgba(124, 45, 18, 0.35)' : 'rgba(133, 77, 14, 0.4)');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(420, 424);
+    ctx.lineTo(1628, 424);
     ctx.stroke();
 
     // Footer Attribution
     ctx.font = 'bold 22px "Cinzel", Georgia, serif';
-    ctx.fillStyle = isSilver ? '#334155' : (isBronze ? '#5c1d05' : '#713f12');
-    ctx.fillText('CHAYAKSHA 26’ • RADAPASA MEDIA UNIT • RCCW', 512, 490);
+    ctx.fillStyle = isSilver ? '#475569' : (isBronze ? '#7c2d12' : '#78350f');
+    ctx.letterSpacing = '2px';
+    ctx.fillText('CHAYAKSHA 26’ • RADAPASA MEDIA UNIT • RCCW', 1024, 468);
 
   } else {
-    // Sleek Matte Slate / Obsidian Plaque
-    const grad = ctx.createLinearGradient(0, 0, 1024, 560);
-    grad.addColorStop(0, '#1e293b');
-    grad.addColorStop(1, '#090d16');
+    // Premium Obsidian Matte Plaque (Acceptances & Salon Entries)
+    const grad = ctx.createLinearGradient(0, 0, 2048, 512);
+    grad.addColorStop(0, '#0f172a');
+    grad.addColorStop(1, '#020617');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1024, 560);
+    ctx.fillRect(0, 0, 2048, 512);
 
     // Bevel outer & inner border
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.4)';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(10, 10, 1004, 540);
+    ctx.strokeStyle = 'rgba(234, 179, 8, 0.7)';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(10, 10, 2028, 492);
 
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(22, 22, 980, 516);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(26, 26, 1996, 460);
 
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
     // 1. PLACE & AWARD TIER
     ctx.font = 'bold 36px "Cinzel", Georgia, serif';
     ctx.fillStyle = '#fbbf24';
-    const displayPlace = place ? place.toUpperCase() : award.toUpperCase();
-    ctx.fillText(`★  ${displayPlace}  ★`, 512, 85);
+    ctx.letterSpacing = '3px';
+    const displayPlace = (place ? place : award).toUpperCase();
+    ctx.fillText(`★   ${displayPlace}   ★`, 1024, 76);
 
     // Divider
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.3)';
+    ctx.strokeStyle = 'rgba(234, 179, 8, 0.4)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(200, 115);
-    ctx.lineTo(824, 115);
+    ctx.moveTo(380, 108);
+    ctx.lineTo(1668, 108);
     ctx.stroke();
 
-    // 2. PHOTO TITLE (Prominently Displayed)
-    ctx.font = 'italic bold 52px "Cinzel", Georgia, serif';
+    // 2. PHOTO TITLE (Crisp Pure White)
+    ctx.font = 'italic bold 64px "Cinzel", Georgia, serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`"${title}"`, 512, 205);
+    ctx.fillText(`"${title}"`, 1024, 196);
 
     // 3. PHOTOGRAPHER NAME
-    ctx.font = 'bold 42px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 48px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#f8fafc';
-    ctx.fillText(photographer.toUpperCase(), 512, 305);
+    ctx.fillText(photographer.toUpperCase(), 1024, 298);
 
     // 4. SCHOOL
-    ctx.font = '600 32px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 34px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#38bdf8';
     const schoolText = school || 'Rajapaksa Central College, Weeraketiya';
-    ctx.fillText(schoolText, 512, 390);
+    ctx.fillText(schoolText, 1024, 384);
 
     // Accent line
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(160, 430);
-    ctx.lineTo(864, 430);
+    ctx.moveTo(420, 424);
+    ctx.lineTo(1628, 424);
     ctx.stroke();
 
     // Footer
     ctx.font = 'bold 22px "Cinzel", Georgia, serif';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('CHAYAKSHA 26’ • RADAPASA MEDIA UNIT • RCCW', 512, 490);
+    ctx.letterSpacing = '2px';
+    ctx.fillText('CHAYAKSHA 26’ • RADAPASA MEDIA UNIT • RCCW', 1024, 468);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 16;
+  texture.needsUpdate = true;
   return texture;
 }
 

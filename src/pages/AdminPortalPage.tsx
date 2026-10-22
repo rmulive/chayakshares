@@ -37,6 +37,7 @@ import {
   uploadImageToStorage,
   uploadCatalogPdfToStorage,
 } from '../firebase/firebaseService';
+import { optimizeImageFile, saveImageToIndexedDb } from '../utils/imageOptimizer';
 import type {
   Artwork,
   GalleryTheme,
@@ -179,46 +180,42 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
+    Array.from(files).forEach(async (file) => {
       if (!file.type.startsWith('image/')) return;
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        const img = new Image();
-        img.onload = () => {
-          const ratio = (img.naturalWidth && img.naturalHeight)
-            ? Number((img.naturalWidth / img.naturalHeight).toFixed(2))
-            : 1.5;
+      try {
+        // High-performance optimizer: extracts exact natural aspect ratio & produces lightweight texture
+        const opt = await optimizeImageFile(file, 2048, 0.88);
+        const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+        const itemId = `bulk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-          // Strip file extension for default title
-          const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+        // Save to IndexedDB immediately for instant offline/local rendering
+        await saveImageToIndexedDb(itemId, opt.dataUrl);
 
-          const newItem: BulkUploadItem = {
-            id: `bulk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            file,
-            imageUrl: dataUrl,
-            title: cleanTitle,
-            photographer: '',
-            school: salonInfo.school || 'Rajapaksa Central College, Weeraketiya',
-            award: defaultAwardName,
-            aspectRatio: ratio,
-          };
-
-          setBulkQueue(prev => [...prev, newItem]);
-
-          // Asynchronously upload to Firebase Cloud Storage bucket
-          uploadImageToStorage(file, 'photographs')
-            .then((fireUrl) => {
-              handleUpdateBulkItem(newItem.id, 'imageUrl', fireUrl);
-            })
-            .catch((err) => {
-              console.warn('Firebase Storage upload notice (using local dataUrl):', err);
-            });
+        const newItem: BulkUploadItem = {
+          id: itemId,
+          file,
+          imageUrl: opt.dataUrl,
+          title: cleanTitle,
+          photographer: '',
+          school: salonInfo.school || 'Rajapaksa Central College, Weeraketiya',
+          award: defaultAwardName,
+          aspectRatio: opt.aspectRatio,
         };
-        img.src = dataUrl;
-      };
-      reader.readAsDataURL(file);
+
+        setBulkQueue(prev => [...prev, newItem]);
+
+        // Asynchronously upload original to Firebase Cloud Storage bucket
+        uploadImageToStorage(file, 'photographs')
+          .then((fireUrl) => {
+            handleUpdateBulkItem(newItem.id, 'imageUrl', fireUrl);
+          })
+          .catch((err) => {
+            console.warn('Firebase Storage upload notice (using optimized local texture):', err);
+          });
+      } catch (err) {
+        console.error('Failed to process image file:', file.name, err);
+      }
     });
 
     if (e.target) e.target.value = '';
@@ -229,9 +226,12 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
     const url = singleImageUrlInput.trim();
 
     const img = new Image();
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
       const ratio = (img.naturalWidth && img.naturalHeight)
-        ? Number((img.naturalWidth / img.naturalHeight).toFixed(2))
+        ? Number((img.naturalWidth / img.naturalHeight).toFixed(3))
         : 1.5;
 
       const newItem: BulkUploadItem = {
@@ -248,7 +248,30 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       setSingleImageUrlInput('');
     };
     img.onerror = () => {
-      alert('Unable to load image from the provided URL. Please check the link.');
+      // Retry without CORS in case server blocks anonymous crossOrigin
+      const retryImg = new Image();
+      retryImg.onload = () => {
+        const ratio = (retryImg.naturalWidth && retryImg.naturalHeight)
+          ? Number((retryImg.naturalWidth / retryImg.naturalHeight).toFixed(3))
+          : 1.5;
+
+        const newItem: BulkUploadItem = {
+          id: `bulk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          imageUrl: url,
+          title: 'Curated Photographic Work',
+          photographer: '',
+          school: salonInfo.school || 'Rajapaksa Central College, Weeraketiya',
+          award: defaultAwardName,
+          aspectRatio: ratio,
+        };
+
+        setBulkQueue(prev => [...prev, newItem]);
+        setSingleImageUrlInput('');
+      };
+      retryImg.onerror = () => {
+        alert('Unable to load image from the provided URL. Please verify the link is accessible.');
+      };
+      retryImg.src = url;
     };
     img.src = url;
   };
@@ -294,8 +317,13 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       const wallSide = overallIdx % 2 === 0 ? 'left' : 'right';
       const zOffset = (wing?.zStart || 16) + 4 + (overallIdx * 6);
 
+      const artId = `art-curator-${Date.now()}-${idx}`;
+      if (item.imageUrl && (item.imageUrl.startsWith('data:') || item.imageUrl.startsWith('blob:'))) {
+        saveImageToIndexedDb(artId, item.imageUrl).catch(() => {});
+      }
+
       return {
-        id: `art-curator-${Date.now()}-${idx}`,
+        id: artId,
         title: item.title.trim(),
         photographer: item.photographer.trim(),
         school: item.school.trim() || salonInfo.school,
@@ -440,18 +468,18 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
   const [judgeImageUrl, setJudgeImageUrl] = useState('');
   const judgeFileRef = useRef<HTMLInputElement>(null);
 
-  const handleJudgePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleJudgePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setJudgeImageUrl(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    uploadImageToStorage(file, 'judges')
-      .then(fireUrl => setJudgeImageUrl(fireUrl))
-      .catch(() => {});
+    try {
+      const opt = await optimizeImageFile(file, 800, 0.88);
+      setJudgeImageUrl(opt.dataUrl);
+      uploadImageToStorage(file, 'judges')
+        .then(fireUrl => setJudgeImageUrl(fireUrl))
+        .catch(() => {});
+    } catch (err) {
+      console.error('Error optimizing judge photo:', err);
+    }
   };
 
   const handleAddJudge = (e: React.FormEvent) => {
@@ -1231,21 +1259,24 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={(e) => {
+                                    onChange={async (e) => {
                                       const file = e.target.files?.[0];
                                       if (!file) return;
-                                      const reader = new FileReader();
-                                      reader.onload = (ev) => {
-                                        handleUpdateBulkItem(item.id, 'imageUrl', ev.target?.result as string);
-                                      };
-                                      reader.readAsDataURL(file);
+                                      try {
+                                        const opt = await optimizeImageFile(file, 2048, 0.88);
+                                        handleUpdateBulkItem(item.id, 'imageUrl', opt.dataUrl);
+                                        handleUpdateBulkItem(item.id, 'aspectRatio', opt.aspectRatio);
+                                        saveImageToIndexedDb(item.id, opt.dataUrl).catch(() => {});
 
-                                      uploadImageToStorage(file, 'photographs')
-                                        .then(fireUrl => {
-                                          handleUpdateBulkItem(item.id, 'imageUrl', fireUrl);
-                                          showBanner('Uploaded image to Firebase Storage!');
-                                        })
-                                        .catch(() => {});
+                                        uploadImageToStorage(file, 'photographs')
+                                          .then(fireUrl => {
+                                            handleUpdateBulkItem(item.id, 'imageUrl', fireUrl);
+                                            showBanner('Uploaded image to Firebase Storage!');
+                                          })
+                                          .catch(() => {});
+                                      } catch (err) {
+                                        console.error('Error optimizing image:', err);
+                                      }
                                     }}
                                   />
                                 </label>
@@ -2352,21 +2383,27 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            setEditingArtwork({ ...editingArtwork, imageUrl: ev.target?.result as string });
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            const opt = await optimizeImageFile(file, 2048, 0.88);
+                            setEditingArtwork(prev => prev ? {
+                              ...prev,
+                              imageUrl: opt.dataUrl,
+                              aspectRatio: opt.aspectRatio,
+                            } : null);
+                            saveImageToIndexedDb(editingArtwork.id, opt.dataUrl).catch(() => {});
 
-                          uploadImageToStorage(file, 'photographs')
-                            .then(fireUrl => {
-                              setEditingArtwork(prev => prev ? { ...prev, imageUrl: fireUrl } : null);
-                              showBanner('Photograph uploaded to Firebase Storage!');
-                            })
-                            .catch(err => console.warn('Storage upload error:', err));
+                            uploadImageToStorage(file, 'photographs')
+                              .then(fireUrl => {
+                                setEditingArtwork(prev => prev ? { ...prev, imageUrl: fireUrl } : null);
+                                showBanner('Photograph uploaded to Firebase Storage!');
+                              })
+                              .catch(err => console.warn('Storage upload notice:', err));
+                          } catch (err) {
+                            console.error('Error optimizing image:', err);
+                          }
                         }}
                       />
                     </label>

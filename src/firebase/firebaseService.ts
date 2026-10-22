@@ -146,7 +146,17 @@ export async function saveWingsToFirestore(wings: CategoryWing[]): Promise<void>
 export async function saveArtworksToFirestore(artworks: Artwork[]): Promise<void> {
   try {
     const docRef = doc(db, COLL_SALON, 'artworks_bundle');
-    await setDoc(docRef, { artworks: JSON.parse(JSON.stringify(artworks)), updatedAt: Date.now() }, { merge: true });
+    // Ensure payload stays comfortably under Firestore's 1MB limit by sanitizing huge raw data URLs
+    const sanitizedArtworks = artworks.map(a => {
+      if (a.imageUrl && a.imageUrl.startsWith('data:') && a.imageUrl.length > 50000) {
+        return {
+          ...a,
+          imageUrl: a.thumbnailUrl || `indexeddb://${a.id}`,
+        };
+      }
+      return a;
+    });
+    await setDoc(docRef, { artworks: JSON.parse(JSON.stringify(sanitizedArtworks)), updatedAt: Date.now() }, { merge: true });
   } catch (err) {
     console.warn('Firestore artworks sync notice:', err);
   }

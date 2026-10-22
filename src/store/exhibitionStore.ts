@@ -59,10 +59,30 @@ const STORAGE_KEY_AWARDS = 'chayaksha_awards_v1';
 const STORAGE_KEY_WINGS = 'chayaksha_wings_v1';
 
 // Initial state load
+function safeSaveArtworksToLocalStorage(artworks: Artwork[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(artworks));
+  } catch (err) {
+    console.warn('LocalStorage quota limit reached, saving lightweight references:', err);
+    try {
+      const lightweight = artworks.map(a => {
+        if (a.imageUrl && a.imageUrl.startsWith('data:') && a.imageUrl.length > 50000) {
+          return { ...a, imageUrl: `indexeddb://${a.id}` };
+        }
+        return a;
+      });
+      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(lightweight));
+    } catch (_) {}
+  }
+}
+
 function loadInitialArtworks(): Artwork[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_ARTWORKS);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
   } catch (e) {
     console.warn('Could not load cached artworks', e);
   }
@@ -382,8 +402,8 @@ export const exhibitionStore = {
   bulkAddArtworks: (newArtworks: Artwork[]) => {
     const updated = [...state.artworks, ...newArtworks];
     state.artworks = updated;
+    safeSaveArtworksToLocalStorage(updated);
     try {
-      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
     saveArtworksToFirestore(updated).catch(() => {});
@@ -393,8 +413,8 @@ export const exhibitionStore = {
   updateArtwork: (updatedArtwork: Artwork) => {
     const updated = state.artworks.map(a => a.id === updatedArtwork.id ? updatedArtwork : a);
     state.artworks = updated;
+    safeSaveArtworksToLocalStorage(updated);
     try {
-      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
     saveArtworksToFirestore(updated).catch(() => {});
@@ -408,8 +428,8 @@ export const exhibitionStore = {
       state.activeArtwork = null;
       state.isInspecting = false;
     }
+    safeSaveArtworksToLocalStorage(updated);
     try {
-      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
     saveArtworksToFirestore(updated).catch(() => {});
@@ -424,8 +444,8 @@ export const exhibitionStore = {
       state.activeArtwork = null;
       state.isInspecting = false;
     }
+    safeSaveArtworksToLocalStorage(updated);
     try {
-      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
       broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
     } catch (_) {}
     saveArtworksToFirestore(updated).catch(() => {});
