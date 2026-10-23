@@ -31,6 +31,10 @@ import {
   ChevronLeft,
   ChevronRight,
   UploadCloud,
+  FileSpreadsheet,
+  Sparkles,
+  RefreshCw,
+  CheckCircle2,
 } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../store/exhibitionStore';
 import {
@@ -38,6 +42,12 @@ import {
   uploadCatalogPdfToStorage,
 } from '../firebase/firebaseService';
 import { optimizeImageFile, saveImageToIndexedDb } from '../utils/imageOptimizer';
+import {
+  parsePhotographFilename,
+  parseParticipantsExcel,
+  findSchoolForParticipant,
+  type ParticipantSchoolRecord,
+} from '../utils/metadataDetector';
 import type {
   Artwork,
   GalleryTheme,
@@ -56,6 +66,10 @@ interface BulkUploadItem {
   school: string;
   award: string;
   aspectRatio: number;
+  originalFilename?: string;
+  isAutoDetected?: boolean;
+  detectedSchool?: boolean;
+  matchedParticipantName?: string;
 }
 
 interface AdminPortalPageProps {
@@ -107,6 +121,45 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
   const [singleImageUrlInput, setSingleImageUrlInput] = useState('');
   const bulkFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Participant School Database state (loaded from Excel / CSV or localStorage)
+  const [participantRecords, setParticipantRecords] = useState<ParticipantSchoolRecord[]>(() => {
+    try {
+      const cached = localStorage.getItem('chayaksha_participants_db');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return Array.isArray(parsed.records) ? parsed.records : [];
+      }
+    } catch (e) {
+      console.warn('Could not restore participant records from localStorage', e);
+    }
+    return [];
+  });
+
+  const [excelFileInfo, setExcelFileInfo] = useState<{
+    fileName: string;
+    rowCount: number;
+    columns: { nameCol: string; schoolCol: string; titleCol?: string };
+  } | null>(() => {
+    try {
+      const cached = localStorage.getItem('chayaksha_participants_db');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.fileName && parsed.rowCount) {
+          return {
+            fileName: parsed.fileName,
+            rowCount: parsed.rowCount,
+            columns: parsed.detectedColumns || { nameCol: 'Name', schoolCol: 'School' },
+          };
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  const [isParsingExcel, setIsParsingExcel] = useState(false);
+  const [excelError, setExcelError] = useState<string | null>(null);
+  const excelFileInputRef = useRef<HTMLInputElement>(null);
+
   // Drag and drop state for bulk uploading order
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -124,6 +177,101 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       ];
 
   const defaultAwardName = sectionAwards[0]?.name || '1st Place - Gold Award';
+
+  // Excel file parsing and school auto-detection
+  const handleProcessExcelFile = async (file: File) => {
+    setIsParsingExcel(true);
+    setExcelError(null);
+    try {
+      const result = await parseParticipantsExcel(file);
+      setParticipantRecords(result.records);
+      setExcelFileInfo({
+        fileName: result.fileName,
+        rowCount: result.rowCount,
+        columns: result.detectedColumns,
+      });
+
+      // Cache to localStorage
+      try {
+        localStorage.setItem(
+          'chayaksha_participants_db',
+          JSON.stringify({
+            records: result.records,
+            fileName: result.fileName,
+            rowCount: result.rowCount,
+            detectedColumns: result.detectedColumns,
+            updatedAt: Date.now(),
+          })
+        );
+      } catch (err) {
+        console.warn('Could not cache participants in localStorage:', err);
+      }
+
+      // Retroactively match schools for photographs currently queued in grid!
+      let retroMatchedCount = 0;
+      setBulkQueue(prev =>
+        prev.map(item => {
+          if (!item.photographer) return item;
+          const match = findSchoolForParticipant(item.photographer, result.records);
+          if (match) {
+            retroMatchedCount++;
+            return {
+              ...item,
+              school: match.school,
+              detectedSchool: true,
+              matchedParticipantName: match.matchedName,
+            };
+          }
+          return item;
+        })
+      );
+
+      showBanner(
+        `Excel loaded: ${result.rowCount} participants indexed. Columns: "${result.detectedColumns.nameCol}" & "${result.detectedColumns.schoolCol}".` +
+        (retroMatchedCount > 0 ? ` Matched schools for ${retroMatchedCount} queued item(s)!` : '')
+      );
+    } catch (err: any) {
+      console.error('Failed to parse participant spreadsheet:', err);
+      setExcelError(err?.message || 'Failed to read spreadsheet file');
+      alert(`Spreadsheet processing error: ${err?.message || 'Unable to parse Excel file.'}`);
+    } finally {
+      setIsParsingExcel(false);
+    }
+  };
+
+  const handleClearExcelDatabase = () => {
+    if (confirm('Clear the loaded participant database from the admin portal?')) {
+      setParticipantRecords([]);
+      setExcelFileInfo(null);
+      localStorage.removeItem('chayaksha_participants_db');
+      showBanner('Participant spreadsheet database cleared.');
+    }
+  };
+
+  const handleReapplySchoolMatching = () => {
+    if (participantRecords.length === 0) {
+      alert('Please upload a participants Excel or CSV file first.');
+      return;
+    }
+    let matchedCount = 0;
+    setBulkQueue(prev =>
+      prev.map(item => {
+        if (!item.photographer) return item;
+        const match = findSchoolForParticipant(item.photographer, participantRecords);
+        if (match) {
+          matchedCount++;
+          return {
+            ...item,
+            school: match.school,
+            detectedSchool: true,
+            matchedParticipantName: match.matchedName,
+          };
+        }
+        return item;
+      })
+    );
+    showBanner(`School auto-match re-applied: ${matchedCount} of ${bulkQueue.length} photograph(s) matched.`);
+  };
 
   // Modal / Inline Edit States
   const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null);
@@ -176,18 +324,53 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
     handleDropReorder(index, targetIndex);
   };
 
-  const handleBulkFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleProcessFilesList = (files: File[]) => {
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach(async (file) => {
-      if (!file.type.startsWith('image/')) return;
+    // Check if user included an Excel / CSV spreadsheet
+    const excelFiles = files.filter(f =>
+      f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.csv') ||
+      f.type === 'text/csv' || f.type.includes('spreadsheet')
+    );
+    if (excelFiles.length > 0) {
+      handleProcessExcelFile(excelFiles[0]);
+    }
 
+    const imageFiles = files.filter(f =>
+      f.type.startsWith('image/') || /\.(jpe?g|png|webp|avif|gif)$/i.test(f.name)
+    );
+    if (imageFiles.length === 0) return;
+
+    let autoDetectedCount = 0;
+    let schoolMatchedCount = 0;
+
+    imageFiles.forEach(async (file) => {
       try {
         // High-performance optimizer: extracts exact natural aspect ratio & produces lightweight texture
         const opt = await optimizeImageFile(file, 2048, 0.88);
-        const cleanTitle = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
         const itemId = `bulk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+        // Smart Filename Metadata Detector
+        // Format: {Award Name} - {Photographer} - {Photo Title}.jpg
+        const parsedMeta = parsePhotographFilename(file.name, sectionAwards, defaultAwardName);
+        if (parsedMeta.isAutoDetected) {
+          autoDetectedCount++;
+        }
+
+        // Auto-match school from participant records if photographer was detected
+        let matchedSchool = salonInfo.school || 'Rajapaksa Central College, Weeraketiya';
+        let detectedSchool = false;
+        let matchedName: string | undefined = undefined;
+
+        if (parsedMeta.photographer && participantRecords.length > 0) {
+          const schoolLookup = findSchoolForParticipant(parsedMeta.photographer, participantRecords);
+          if (schoolLookup) {
+            matchedSchool = schoolLookup.school;
+            detectedSchool = true;
+            matchedName = schoolLookup.matchedName;
+            schoolMatchedCount++;
+          }
+        }
 
         // Save to IndexedDB immediately for instant offline/local rendering
         await saveImageToIndexedDb(itemId, opt.dataUrl);
@@ -196,11 +379,15 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
           id: itemId,
           file,
           imageUrl: opt.dataUrl,
-          title: cleanTitle,
-          photographer: '',
-          school: salonInfo.school || 'Rajapaksa Central College, Weeraketiya',
-          award: defaultAwardName,
+          title: parsedMeta.title || file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
+          photographer: parsedMeta.photographer || '',
+          school: matchedSchool,
+          award: parsedMeta.award || defaultAwardName,
           aspectRatio: opt.aspectRatio,
+          originalFilename: file.name,
+          isAutoDetected: parsedMeta.isAutoDetected,
+          detectedSchool,
+          matchedParticipantName: matchedName,
         };
 
         setBulkQueue(prev => [...prev, newItem]);
@@ -218,6 +405,20 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       }
     });
 
+    if (autoDetectedCount > 0) {
+      setTimeout(() => {
+        showBanner(
+          `Auto-detected details from filename for ${autoDetectedCount} image(s)!` +
+          (schoolMatchedCount > 0 ? ` ${schoolMatchedCount} school(s) matched from spreadsheet.` : '')
+        );
+      }, 500);
+    }
+  };
+
+  const handleBulkFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    handleProcessFilesList(Array.from(files));
     if (e.target) e.target.value = '';
   };
 
@@ -278,7 +479,20 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
 
   const handleUpdateBulkItem = (id: string, field: keyof BulkUploadItem, val: string | number) => {
     setBulkQueue(prev =>
-      prev.map(item => (item.id === id ? { ...item, [field]: val } : item))
+      prev.map(item => {
+        if (item.id !== id) return item;
+        const updated = { ...item, [field]: val };
+        // When photographer name is updated, auto-match school from participant database if available
+        if (field === 'photographer' && typeof val === 'string' && val.trim().length > 2 && participantRecords.length > 0) {
+          const match = findSchoolForParticipant(val.trim(), participantRecords);
+          if (match) {
+            updated.school = match.school;
+            updated.detectedSchool = true;
+            updated.matchedParticipantName = match.matchedName;
+          }
+        }
+        return updated;
+      })
     );
   };
 
@@ -1028,26 +1242,154 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                 </div>
               </div>
 
+              {/* Participant School Database (Excel / CSV Auto-Detection) */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                excelFileInfo
+                  ? 'bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border-emerald-500/40 shadow-lg shadow-emerald-950/20'
+                  : 'bg-slate-900 border-slate-800'
+              }`}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${excelFileInfo ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'}`}>
+                      <FileSpreadsheet size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                          Participant School Database (Excel / CSV)
+                        </h3>
+                        {excelFileInfo ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                            <CheckCircle2 size={10} /> {excelFileInfo.rowCount} Participants Indexed
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-medium border border-slate-700">
+                            Upload to Auto-Detect School
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Upload participant list (.xlsx, .xls, .csv). Filenames matching <span className="font-mono text-amber-300 font-semibold">{"{Award} - {Photographer} - {Title}.jpg"}</span> auto-populate and match school instantly!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      ref={excelFileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleProcessExcelFile(file);
+                        if (e.target) e.target.value = '';
+                      }}
+                    />
+                    {excelFileInfo ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleReapplySchoolMatching}
+                          disabled={bulkQueue.length === 0}
+                          className="px-3 py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-xs font-semibold text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                          title="Re-run school matching for all photographs currently in the grid"
+                        >
+                          <RefreshCw size={12} className={isParsingExcel ? 'animate-spin' : ''} />
+                          Re-match Schools ({bulkQueue.length} in Grid)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => excelFileInputRef.current?.click()}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Upload size={12} /> Replace Spreadsheet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleClearExcelDatabase}
+                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-red-950/60 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition-all cursor-pointer"
+                          title="Clear participant spreadsheet database"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isParsingExcel}
+                        onClick={() => excelFileInputRef.current?.click()}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-950/30 transition-all cursor-pointer transform hover:scale-102"
+                      >
+                        <FileSpreadsheet size={15} />
+                        {isParsingExcel ? 'Reading Spreadsheet...' : 'Upload Participants Excel (.xlsx, .csv)'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Active Database Info Bar */}
+                {excelFileInfo && (
+                  <div className="pt-2.5 mt-2.5 border-t border-emerald-500/20 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-3 text-slate-300 flex-wrap">
+                      <span className="font-semibold text-white flex items-center gap-1.5">
+                        <FileSpreadsheet size={13} className="text-emerald-400" />
+                        {excelFileInfo.fileName}
+                      </span>
+                      <span className="text-slate-400 text-[11px]">
+                        Matched Columns:
+                        <span className="text-cyan-300 font-mono ml-1 font-semibold">"{excelFileInfo.columns.nameCol}"</span> &rarr;
+                        <span className="text-emerald-300 font-mono ml-1 font-semibold">"{excelFileInfo.columns.schoolCol}"</span>
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-emerald-400/90 font-medium flex items-center gap-1">
+                      <CheckCircle2 size={11} /> Saved & active across all section uploads
+                    </span>
+                  </div>
+                )}
+
+                {excelError && (
+                  <div className="mt-2 text-xs text-red-400 bg-red-950/40 p-2.5 rounded-xl border border-red-500/30">
+                    Spreadsheet Error: {excelError}
+                  </div>
+                )}
+              </div>
+
               {/* Upload Zone */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div
                   onClick={() => bulkFileInputRef.current?.click()}
-                  className="md:col-span-2 border-2 border-dashed border-amber-500/40 hover:border-amber-400 rounded-2xl p-6 text-center cursor-pointer bg-slate-900/60 transition-all flex flex-col items-center justify-center gap-2"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const files = e.dataTransfer.files;
+                    if (files && files.length > 0) {
+                      handleProcessFilesList(Array.from(files));
+                    }
+                  }}
+                  className="md:col-span-2 border-2 border-dashed border-amber-500/40 hover:border-amber-400 rounded-2xl p-6 text-center cursor-pointer bg-slate-900/60 transition-all flex flex-col items-center justify-center gap-2 group"
                 >
                   <input
                     ref={bulkFileInputRef}
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/*,.xlsx,.xls,.csv"
                     onChange={handleBulkFilesSelect}
                     className="hidden"
                   />
-                  <FileUp size={36} className="text-amber-400" />
+                  <div className="p-3 rounded-full bg-amber-500/10 text-amber-400 group-hover:scale-110 transition-transform">
+                    <FileUp size={32} />
+                  </div>
                   <span className="text-sm font-bold text-white">
-                    Click to Select Multiple Images or Drop Images Here
+                    Click to Select Multiple Images or Drop Images / Spreadsheets Here
                   </span>
-                  <span className="text-xs text-slate-400">
-                    Supports JPG, PNG, WebP. Frame aspect ratio is automatically read and calibrated!
+                  <span className="text-xs text-slate-400 max-w-lg">
+                    Supports JPG, PNG, WebP & Excel. Filenames matching <strong className="text-amber-300">"{'{'}Award{'}'} - {'{'}Photographer{'}'} - {'{'}Title{'}'}.jpg"</strong> automatically auto-fill metadata!
                   </span>
                 </div>
 
@@ -1167,7 +1509,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                             </div>
                           </div>
 
-                          {/* Thumbnail with Aspect Ratio Badge */}
+                          {/* Thumbnail with Aspect Ratio Badge & Detection Badges */}
                           <div className="relative aspect-[4/3] bg-black overflow-hidden flex items-center justify-center">
                             <img
                               src={item.imageUrl}
@@ -1183,6 +1525,20 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                                   : `Square (${item.aspectRatio}:1)`}
                               </span>
                             </div>
+                            {item.isAutoDetected && (
+                              <div className="absolute top-2 right-2 flex items-center gap-1">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 font-semibold flex items-center gap-1 shadow">
+                                  <Sparkles size={10} /> Auto-Detected
+                                </span>
+                              </div>
+                            )}
+                            {item.detectedSchool && (
+                              <div className="absolute bottom-2 left-2 flex items-center gap-1">
+                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-950/90 text-cyan-200 border border-cyan-500/40 font-semibold flex items-center gap-1 shadow">
+                                  <School size={9} /> Excel Matched
+                                </span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Inline Form Fields (ONLY 4 required details) */}
@@ -1199,6 +1555,11 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                                 placeholder="Title of photograph"
                                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
                               />
+                              {item.originalFilename && (
+                                <div className="text-[10px] text-slate-500 truncate mt-0.5" title={item.originalFilename}>
+                                  File: {item.originalFilename}
+                                </div>
+                              )}
                             </div>
 
                             {/* 2. Award (From Section Defined Awards ONLY) */}
@@ -1231,6 +1592,11 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                                 placeholder="e.g. Seniru Jayawardena"
                                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
                               />
+                              {item.isAutoDetected && item.photographer && (
+                                <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium mt-0.5">
+                                  <Sparkles size={10} /> Detected from filename
+                                </span>
+                              )}
                             </div>
 
                             {/* 4. School */}
@@ -1245,6 +1611,15 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                                 placeholder="e.g. Rajapaksa Central College, Weeraketiya"
                                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-cyan-500/40 text-xs text-cyan-200 focus:outline-none"
                               />
+                              {item.detectedSchool ? (
+                                <span className="text-[10px] text-cyan-300 flex items-center gap-1 font-medium mt-0.5">
+                                  <CheckCircle2 size={11} /> Matched from Excel {item.matchedParticipantName ? `("${item.matchedParticipantName}")` : ''}
+                                </span>
+                              ) : participantRecords.length > 0 && item.photographer ? (
+                                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                                  No spreadsheet match found for "{item.photographer}"
+                                </span>
+                              ) : null}
                             </div>
 
                             {/* 5. Image URL & Direct Firebase Storage Upload */}
