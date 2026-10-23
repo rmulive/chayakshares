@@ -480,3 +480,122 @@ export function createSignageTexture(
   return texture;
 }
 
+/**
+ * Creates high-resolution Museum Section Welcome Board texture
+ * Displays luxury gold borders, section name, curator description, and awards summary
+ */
+export function createWelcomeBoardTexture(
+  sectionName: string,
+  description: string,
+  accentColor: string = '#f59e0b',
+  awardsCount: number = 0
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  // 1. Luxury Museum Matte Slate Background with subtle radial gold gradient
+  const bgGrad = ctx.createRadialGradient(1024, 512, 100, 1024, 512, 1100);
+  bgGrad.addColorStop(0, '#111827');
+  bgGrad.addColorStop(0.7, '#0b0f19');
+  bgGrad.addColorStop(1, '#030712');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 2048, 1024);
+
+  // 2. Beveled Gold Museum Border
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 14;
+  ctx.strokeRect(24, 24, 2000, 976);
+
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(48, 48, 1952, 928);
+
+  // Ornate Corner Accents
+  const corners = [
+    [48, 48],
+    [2000, 48],
+    [48, 976],
+    [2000, 976],
+  ];
+  ctx.fillStyle = '#fef08a';
+  corners.forEach(([cx, cy]) => {
+    ctx.fillRect(cx - 8, cy - 8, 16, 16);
+  });
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // 3. Header: Salon Ribbon & Welcome Tag
+  ctx.font = 'bold 36px "Cinzel", Georgia, serif';
+  ctx.fillStyle = '#facc15';
+  ctx.fillText('★   CHAYAKSHA 26’ EXHIBITION GALLERY   ★', 1024, 150);
+
+  ctx.strokeStyle = 'rgba(250, 204, 21, 0.5)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(420, 200);
+  ctx.lineTo(1628, 200);
+  ctx.stroke();
+
+  // "WELCOME TO"
+  ctx.font = 'bold 32px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('WELCOME TO', 1024, 270);
+
+  // 4. SECTION NAME (Monumental 84px High-Contrast Fine-Art Typography)
+  ctx.font = '900 84px "Cinzel", Georgia, serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = accentColor || '#ffd700';
+  ctx.shadowBlur = 24;
+  ctx.fillText(sectionName.toUpperCase(), 1024, 420);
+
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = '#fef08a';
+  ctx.fillText(sectionName.toUpperCase(), 1024, 420);
+  ctx.shadowColor = 'transparent';
+
+  // Section Accent Divider
+  ctx.strokeStyle = accentColor || '#ffd700';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(512, 530);
+  ctx.lineTo(1536, 530);
+  ctx.stroke();
+
+  // 5. Section Description
+  ctx.font = 'italic 38px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillText(`"${description}"`, 1024, 630);
+
+  // 6. Section Awards Badge Pill
+  if (awardsCount > 0) {
+    ctx.fillStyle = 'rgba(212, 175, 55, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(624, 720, 800, 72, 36);
+    ctx.fill();
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText(`🏆  ${awardsCount} Defined Section Awards & Official Honors`, 1024, 756);
+  }
+
+  // 7. Footer
+  ctx.font = 'bold 24px "Cinzel", Georgia, serif';
+  ctx.fillStyle = 'rgba(212, 175, 55, 0.8)';
+  ctx.fillText('RAJAPAKSA CENTRAL COLLEGE • RADAPASA MEDIA UNIT • WEERAKETIYA', 1024, 910);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 16;
+  texture.needsUpdate = true;
+  return texture;
+}
+

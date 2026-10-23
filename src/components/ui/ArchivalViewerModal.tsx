@@ -18,6 +18,7 @@ import {
   User,
 } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../../store/exhibitionStore';
+import { getImageFromIndexedDb } from '../../utils/imageOptimizer';
 
 export const ArchivalViewerModal: React.FC = () => {
   const { activeArtwork, artworks } = useExhibitionStore();
@@ -27,15 +28,34 @@ export const ArchivalViewerModal: React.FC = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(true);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string>('');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const startPanRef = useRef({ x: 0, y: 0 });
 
-  // Reset zoom on artwork change
+  // Reset zoom and resolve image URL on artwork change
   useEffect(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-  }, [activeArtwork?.id]);
+
+    if (!activeArtwork) return;
+    let active = true;
+
+    if (activeArtwork.imageUrl.startsWith('indexeddb://')) {
+      const key = activeArtwork.imageUrl.replace('indexeddb://', '') || activeArtwork.id;
+      getImageFromIndexedDb(key).then(cached => {
+        if (active && cached) {
+          setResolvedImageUrl(cached);
+        } else if (active) {
+          setResolvedImageUrl(activeArtwork.imageUrl);
+        }
+      });
+    } else {
+      setResolvedImageUrl(activeArtwork.imageUrl);
+    }
+
+    return () => { active = false; };
+  }, [activeArtwork?.id, activeArtwork?.imageUrl]);
 
   if (!activeArtwork) return null;
 
@@ -195,8 +215,13 @@ export const ArchivalViewerModal: React.FC = () => {
           }}
         >
           <img
-            src={activeArtwork.imageUrl}
+            src={resolvedImageUrl || activeArtwork.imageUrl}
             alt={activeArtwork.title}
+            onError={() => {
+              getImageFromIndexedDb(activeArtwork.id).then(cached => {
+                if (cached) setResolvedImageUrl(cached);
+              });
+            }}
             className="max-h-[82vh] max-w-[85vw] object-contain rounded-md shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-slate-800/80 pointer-events-none"
             draggable={false}
           />

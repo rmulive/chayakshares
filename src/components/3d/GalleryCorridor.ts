@@ -1,28 +1,47 @@
 import * as THREE from 'three';
 import { ThemeManager } from './ThemeManager';
 import { CATEGORY_WINGS } from '../../data/salonData';
-import { createSignageTexture } from '../../utils/textures';
+import { createSignageTexture, createWelcomeBoardTexture } from '../../utils/textures';
+import type { CategoryWing } from '../../types/exhibition';
 
 const textureLoader = new THREE.TextureLoader();
 
 export class GalleryCorridor extends THREE.Group {
   private themeManager: ThemeManager;
-  public length = 188; // Total corridor length in meters
+  public length = 360; // Total corridor length in meters
   public width = 12;   // Corridor width (-6m to +6m)
   public height = 6.4; // Ceiling height
+  private portalGroup = new THREE.Group();
+  private currentWings: CategoryWing[];
 
-  constructor(themeManager: ThemeManager) {
+  constructor(themeManager: ThemeManager, wings: CategoryWing[] = CATEGORY_WINGS) {
     super();
     this.themeManager = themeManager;
+    this.currentWings = wings;
     this.name = 'gallery-corridor';
+
+    const lastWing = wings[wings.length - 1];
+    if (lastWing) {
+      this.length = Math.max(360, lastWing.zEnd + 24);
+    }
 
     this.buildFloor();
     this.buildWalls();
     this.buildCeilingAndLouvers();
     this.buildGrandEntranceColonnade();
-    // (Benches/chairs completely removed per user request)
-    this.buildWingPortals();
+    
+    this.add(this.portalGroup);
+    this.buildWingWelcomeBoards(this.currentWings);
     this.buildGrandEntranceLogos();
+  }
+
+  public updateWings(wings: CategoryWing[]): void {
+    this.currentWings = wings;
+    const lastWing = wings[wings.length - 1];
+    if (lastWing) {
+      this.length = Math.max(360, lastWing.zEnd + 24);
+    }
+    this.buildWingWelcomeBoards(wings);
   }
 
   private buildFloor(): void {
@@ -184,73 +203,148 @@ export class GalleryCorridor extends THREE.Group {
   }
 
   /**
-   * Category Portals with Glowing Highlighted Text (No Liquid Glass)
+   * Section Welcome Boards & Archway Partitions
+   * Visually and architecturally separates every section in the exhibition hall.
    */
-  private buildWingPortals(): void {
+  private buildWingWelcomeBoards(wings: CategoryWing[]): void {
+    // Clear existing portals if updating
+    while (this.portalGroup.children.length > 0) {
+      const child = this.portalGroup.children[0];
+      this.portalGroup.remove(child);
+      if ((child as THREE.Mesh).geometry) (child as THREE.Mesh).geometry.dispose();
+    }
+
     const portalMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      metalness: 0.85,
-      roughness: 0.2,
+      color: 0x090d16,
+      metalness: 0.88,
+      roughness: 0.22,
     });
 
-    CATEGORY_WINGS.forEach((wing, idx) => {
-      if (idx === 0) return; // Skip foyer
+    const goldTrimMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.8,
+      roughness: 0.25,
+    });
+
+    wings.forEach((wing, idx) => {
+      if (idx === 0) return; // Foyer threshold is open
 
       const z = wing.zStart;
 
-      // Portal Frame Columns (Left & Right)
-      const columnGeo = new THREE.BoxGeometry(0.35, this.height, 0.35);
+      // 1. Heavy Portal Archway Columns (Left & Right)
+      const columnGeo = new THREE.BoxGeometry(0.42, this.height, 0.42);
       const leftCol = new THREE.Mesh(columnGeo, portalMat);
-      leftCol.position.set(-this.width / 2 + 0.18, this.height / 2, z);
-      this.add(leftCol);
+      leftCol.position.set(-this.width / 2 + 0.21, this.height / 2, z);
+      this.portalGroup.add(leftCol);
 
       const rightCol = new THREE.Mesh(columnGeo, portalMat);
-      rightCol.position.set(this.width / 2 - 0.18, this.height / 2, z);
-      this.add(rightCol);
+      rightCol.position.set(this.width / 2 - 0.21, this.height / 2, z);
+      this.portalGroup.add(rightCol);
 
-      // Portal Cross Beam Lintel
-      const beamGeo = new THREE.BoxGeometry(this.width, 0.45, 0.35);
+      // Gold Column Plinths & Capitals
+      const capGeo = new THREE.BoxGeometry(0.55, 0.16, 0.55);
+      const leftCap = new THREE.Mesh(capGeo, goldTrimMat);
+      leftCap.position.set(-this.width / 2 + 0.21, 0.08, z);
+      this.portalGroup.add(leftCap);
+
+      const rightCap = new THREE.Mesh(capGeo, goldTrimMat);
+      rightCap.position.set(this.width / 2 - 0.21, 0.08, z);
+      this.portalGroup.add(rightCap);
+
+      // 2. Portal Cross Beam Archway
+      const beamGeo = new THREE.BoxGeometry(this.width, 0.48, 0.42);
       const beam = new THREE.Mesh(beamGeo, portalMat);
-      beam.position.set(0, this.height - 0.22, z);
-      this.add(beam);
+      beam.position.set(0, this.height - 0.24, z);
+      this.portalGroup.add(beam);
 
-      // Solid architectural header board (NO liquid glass)
-      const boardGeo = new THREE.BoxGeometry(6.6, 1.4, 0.08);
+      // 3. Overhead Grand Welcome Board (7m x 2.2m)
+      const boardWidth = 7.2;
+      const boardHeight = 2.2;
+      const boardDepth = 0.12;
+      const boardGeo = new THREE.BoxGeometry(boardWidth, boardHeight, boardDepth);
       const boardMat = new THREE.MeshStandardMaterial({
-        color: 0x0a0f1d,
+        color: 0x050811,
         roughness: 0.35,
         metalness: 0.65,
       });
 
-      // Front board
-      const frontBoard = new THREE.Mesh(boardGeo, boardMat);
-      frontBoard.position.set(0, this.height - 1.05, z - 0.2);
-      this.add(frontBoard);
+      const overheadBoard = new THREE.Mesh(boardGeo, boardMat);
+      overheadBoard.position.set(0, this.height - 1.45, z);
+      this.portalGroup.add(overheadBoard);
 
-      // Back board
-      const backBoard = new THREE.Mesh(boardGeo, boardMat);
-      backBoard.position.set(0, this.height - 1.05, z + 0.2);
-      this.add(backBoard);
+      // Gold frame around overhead board
+      const boardTrimGeo = new THREE.BoxGeometry(boardWidth + 0.1, boardHeight + 0.1, 0.14);
+      const boardTrim = new THREE.Mesh(boardTrimGeo, goldTrimMat);
+      boardTrim.position.set(0, this.height - 1.45, z);
+      this.portalGroup.add(boardTrim);
 
-      // Luminous Highlighted Category Signage Text (mounted directly on solid board)
-      const signGeo = new THREE.PlaneGeometry(6.4, 1.35);
-      const signTex = createSignageTexture(wing.name, wing.description, wing.colorHex);
+      // 4. Double-Sided High-Resolution Section Welcome Board Canvas Texture
+      const welcomeTex = createWelcomeBoardTexture(
+        wing.name,
+        wing.description,
+        wing.colorHex,
+        wing.awards?.length || 5
+      );
+
+      const signGeo = new THREE.PlaneGeometry(boardWidth - 0.1, boardHeight - 0.1);
       const signMat = new THREE.MeshBasicMaterial({
-        map: signTex,
-        transparent: true,
-        depthWrite: false,
+        map: welcomeTex,
       });
 
-      // Front facing sign (walking forward +Z)
+      // Front facing sign (walking forward down corridor towards +Z)
       const frontSign = new THREE.Mesh(signGeo, signMat);
-      frontSign.position.set(0, this.height - 1.05, z - 0.25);
-      this.add(frontSign);
+      frontSign.position.set(0, this.height - 1.45, z - 0.075);
+      this.portalGroup.add(frontSign);
 
-      // Back facing sign (walking backward -Z)
+      // Back facing sign (walking backwards towards -Z)
       const backSign = new THREE.Mesh(signGeo, signMat);
       backSign.rotation.y = Math.PI;
-      backSign.position.set(0, this.height - 1.05, z + 0.25);
-      this.add(backSign);
+      backSign.position.set(0, this.height - 1.45, z + 0.075);
+      this.portalGroup.add(backSign);
+
+      // 5. Freestanding Museum Entrance Welcome Board Pylon on Right Side of Walkway
+      const pylonGroup = new THREE.Group();
+      pylonGroup.position.set(4.2, 0, z + 0.6);
+      pylonGroup.rotation.y = -Math.PI / 6; // Angled 30 deg towards walking visitors
+
+      // Pylon Plinth base
+      const plinthGeo = new THREE.BoxGeometry(2.4, 0.2, 0.6);
+      const plinthMesh = new THREE.Mesh(plinthGeo, portalMat);
+      plinthMesh.position.y = 0.1;
+      pylonGroup.add(plinthMesh);
+
+      // Pylon Twin Support Posts
+      const postGeo = new THREE.BoxGeometry(0.1, 1.2, 0.1);
+      const leftPost = new THREE.Mesh(postGeo, goldTrimMat);
+      leftPost.position.set(-0.7, 0.7, 0);
+      pylonGroup.add(leftPost);
+
+      const rightPost = new THREE.Mesh(postGeo, goldTrimMat);
+      rightPost.position.set(0.7, 0.7, 0);
+      pylonGroup.add(rightPost);
+
+      // Welcome Board Easel Frame (2.2m x 1.1m)
+      const easelFrameGeo = new THREE.BoxGeometry(2.24, 1.14, 0.08);
+      const easelFrameMesh = new THREE.Mesh(easelFrameGeo, goldTrimMat);
+      easelFrameMesh.position.set(0, 1.8, 0);
+      easelFrameMesh.rotation.x = -0.15; // Tilted slightly backwards for natural reading angle
+      pylonGroup.add(easelFrameMesh);
+
+      const easelBoardGeo = new THREE.PlaneGeometry(2.18, 1.08);
+      const easelBoardMat = new THREE.MeshBasicMaterial({ map: welcomeTex });
+      const easelBoardMesh = new THREE.Mesh(easelBoardGeo, easelBoardMat);
+      easelBoardMesh.position.set(0, 1.8, 0.045);
+      easelBoardMesh.rotation.x = -0.15;
+      pylonGroup.add(easelBoardMesh);
+
+      this.portalGroup.add(pylonGroup);
+
+      // 6. Section Entrance Threshold Warm Downlight
+      const spot = new THREE.SpotLight(0xfff7ed, 4.0, 12, Math.PI / 3, 0.5);
+      spot.position.set(0, this.height - 0.3, z);
+      spot.target.position.set(0, 0, z);
+      this.portalGroup.add(spot);
+      this.portalGroup.add(spot.target);
     });
   }
 

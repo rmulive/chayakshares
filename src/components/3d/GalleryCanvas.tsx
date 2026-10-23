@@ -10,7 +10,7 @@ export const GalleryCanvas: React.FC<GalleryCanvasProps> = ({ onSceneReady }) =>
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<GalleryScene | null>(null);
 
-  const { artworks, theme } = useExhibitionStore();
+  const { artworks, theme, wings } = useExhibitionStore();
 
   // Mount 3D Scene
   useEffect(() => {
@@ -34,6 +34,13 @@ export const GalleryCanvas: React.FC<GalleryCanvasProps> = ({ onSceneReady }) =>
       sceneRef.current.syncArtworks(artworks);
     }
   }, [artworks]);
+
+  // Sync section wings for corridor architectural partitions and welcome boards
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.corridor.updateWings(wings);
+    }
+  }, [wings]);
 
   // Sync architectural theme
   useEffect(() => {

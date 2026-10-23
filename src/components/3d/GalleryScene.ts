@@ -23,6 +23,8 @@ export class GalleryScene {
   // Raycasting for mouse and center reticle interactions
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
+  private mouseDownX = 0;
+  private mouseDownY = 0;
   public isHoveringArtwork = false;
   public focusedArtwork: Artwork | null = null;
 
@@ -81,6 +83,7 @@ export class GalleryScene {
     // 9. Event Listeners
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onGlobalKeyDown);
+    this.renderer.domElement.addEventListener('mousedown', this.onMouseDown);
     this.renderer.domElement.addEventListener('click', this.onClick);
     this.renderer.domElement.addEventListener('mousemove', this.onPointerMove);
 
@@ -124,8 +127,13 @@ export class GalleryScene {
 
   private onGlobalKeyDown = (e: KeyboardEvent) => {
     if (e.code === 'KeyE' && this.focusedArtwork) {
-      exhibitionStore.setActiveArtwork(this.focusedArtwork, true);
+      exhibitionStore.setActiveArtwork(this.focusedArtwork, false);
     }
+  };
+
+  private onMouseDown = (e: MouseEvent) => {
+    this.mouseDownX = e.clientX;
+    this.mouseDownY = e.clientY;
   };
 
   private onPointerMove = (e: MouseEvent) => {
@@ -137,7 +145,7 @@ export class GalleryScene {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
 
-    if (intersects.length > 0 && intersects[0].distance < 16) {
+    if (intersects.length > 0 && intersects[0].distance < 20) {
       const hit = intersects[0].object;
       if (hit.userData?.isArtwork && hit.userData.artwork) {
         this.focusedArtwork = hit.userData.artwork as Artwork;
@@ -156,6 +164,10 @@ export class GalleryScene {
   };
 
   private onClick = (e: MouseEvent) => {
+    // If mouse was dragged more than 6px, treat as camera pan, NOT an artwork click
+    const dist = Math.hypot(e.clientX - this.mouseDownX, e.clientY - this.mouseDownY);
+    if (dist > 6) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -163,11 +175,12 @@ export class GalleryScene {
 
     const intersects = this.raycaster.intersectObjects(this.interactiveMeshes, false);
 
-    if (intersects.length > 0 && intersects[0].distance < 16) {
+    if (intersects.length > 0 && intersects[0].distance < 25) {
       const hit = intersects[0].object;
       if (hit.userData?.isArtwork && hit.userData.artwork) {
         const artwork = hit.userData.artwork as Artwork;
-        exhibitionStore.setActiveArtwork(artwork, true);
+        // Open Archival Deep Zoom & Inspection window!
+        exhibitionStore.setActiveArtwork(artwork, false);
       }
     }
   };
@@ -193,6 +206,7 @@ export class GalleryScene {
     }
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onGlobalKeyDown);
+    this.renderer.domElement.removeEventListener('mousedown', this.onMouseDown);
     this.renderer.domElement.removeEventListener('click', this.onClick);
     this.renderer.domElement.removeEventListener('mousemove', this.onPointerMove);
     this.controller.dispose();

@@ -6,6 +6,7 @@ export const GuestbookModal: React.FC = () => {
   const { guestbook } = useExhibitionStore();
 
   const [author, setAuthor] = useState('');
+  const [distinction, setDistinction] = useState('');
   const [country, setCountry] = useState('');
   const [message, setMessage] = useState('');
   const [rating, setRating] = useState(5);
@@ -20,12 +21,14 @@ export const GuestbookModal: React.FC = () => {
     exhibitionStore.addGuestbookEntry({
       author: author.trim(),
       country: country.trim() || 'Global Patron',
+      distinction: distinction.trim() || undefined,
       message: message.trim(),
       rating,
       avatarColor: ['#f59e0b', '#3b82f6', '#10b981', '#ec4899', '#8b5cf6'][Math.floor(Math.random() * 5)],
     });
 
     setAuthor('');
+    setDistinction('');
     setMessage('');
     setCountry('');
     setIsSubmitting(false);
@@ -93,6 +96,19 @@ export const GuestbookModal: React.FC = () => {
                       placeholder="e.g. Marcella Rossi"
                       value={author}
                       onChange={(e) => setAuthor(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                      Distinction / Honors (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. M IAAP, ARPS, or School"
+                      value={distinction}
+                      onChange={(e) => setDistinction(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
                     />
                   </div>
@@ -183,7 +199,14 @@ export const GuestbookModal: React.FC = () => {
                         {entry.author.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-slate-100">{entry.author}</h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-xs font-bold text-slate-100">{entry.author}</h4>
+                          {entry.distinction && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              {entry.distinction}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-slate-400">{entry.country}</span>
                       </div>
                     </div>

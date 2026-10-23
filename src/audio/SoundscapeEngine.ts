@@ -46,87 +46,9 @@ class SoundscapeEngine {
   }
 
   public async start(): Promise<void> {
-    if (!this.isInitialized) this.init();
-    if (!this.ctx || !this.masterGain) return;
-
-    if (this.ctx.state === 'suspended') {
-      await this.ctx.resume();
-    }
-
-    if (this.isPlaying) return;
-
-    const t = this.ctx.currentTime;
-
-    // Build evolving harmonic drone chords (A-minor 9th ambient chord: 55Hz, 110Hz, 164.81Hz, 220Hz, 329.63Hz)
-    const freqs = [55.0, 110.0, 164.81, 220.0, 329.63];
-    this.oscillators = [];
-
-    freqs.forEach((freq, idx) => {
-      if (!this.ctx || !this.filterNode) return;
-      const osc = this.ctx.createOscillator();
-      const oscGain = this.ctx.createGain();
-
-      osc.type = idx === 0 ? 'sine' : idx % 2 === 0 ? 'triangle' : 'sine';
-      osc.frequency.setValueAtTime(freq, t);
-
-      // Slight detune for rich choral spatial width
-      osc.detune.setValueAtTime((idx - 2) * 4, t);
-
-      // Gentle gain per harmonic layer
-      const gainVal = idx === 0 ? 0.28 : 0.08 / (idx + 1);
-      oscGain.gain.setValueAtTime(gainVal, t);
-
-      osc.connect(oscGain);
-      oscGain.connect(this.filterNode);
-      osc.start(t);
-      this.oscillators.push(osc);
-    });
-
-    // Create subtle spatial air acoustic texture (pinkish filtered noise)
-    this.startAtmosphericAir(t);
-
-    // Fade in master gain smoothly
-    this.masterGain.gain.cancelScheduledValues(t);
-    this.masterGain.gain.setValueAtTime(0, t);
-    this.masterGain.gain.linearRampToValueAtTime(this.currentVolume, t + 2.5);
-
-    this.isPlaying = true;
-  }
-
-  private startAtmosphericAir(t: number): void {
-    if (!this.ctx || !this.filterNode) return;
-
-    const bufferSize = this.ctx.sampleRate * 2;
-    const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    let b0 = 0, b1 = 0, b2 = 0;
-
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      b0 = 0.99 * b0 + white * 0.05;
-      b1 = 0.96 * b1 + white * 0.11;
-      b2 = 0.86 * b2 + white * 0.25;
-      output[i] = (b0 + b1 + b2) * 0.04;
-    }
-
-    const whiteNoise = this.ctx.createBufferSource();
-    whiteNoise.buffer = noiseBuffer;
-    whiteNoise.loop = true;
-
-    const noiseFilter = this.ctx.createBiquadFilter();
-    noiseFilter.type = 'bandpass';
-    noiseFilter.frequency.setValueAtTime(450, t);
-    noiseFilter.Q.setValueAtTime(0.7, t);
-
-    const noiseGain = this.ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.06, t);
-
-    whiteNoise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(this.filterNode);
-    whiteNoise.start(t);
-
-    this.noiseNode = whiteNoise;
+    // Procedural synthesizer drone disabled per curator specification.
+    // Ambient sound is strictly played via configured YouTube URL. If no URL is provided, exhibition remains silent.
+    return;
   }
 
   public stop(): void {

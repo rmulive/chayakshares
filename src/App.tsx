@@ -8,6 +8,7 @@ import { FloorPlanModal } from './components/ui/FloorPlanModal';
 import { SalonCatalogueModal } from './components/ui/SalonCatalogueModal';
 import { GuestbookModal } from './components/ui/GuestbookModal';
 import { SalonInfoModal } from './components/ui/SalonInfoModal';
+import { YouTubeAmbientPlayer } from './components/ui/YouTubeAmbientPlayer';
 import { AdminPortalPage } from './pages/AdminPortalPage';
 import { useExhibitionStore, exhibitionStore } from './store/exhibitionStore';
 import { ArrowRight, ExternalLink, FileDown, Eye } from 'lucide-react';
@@ -65,6 +66,7 @@ export const App: React.FC = () => {
       <NavigationHUD sceneInstance={sceneInstance} />
 
       {/* Modals & Overlays */}
+      <YouTubeAmbientPlayer />
       {activeArtwork && <ArchivalViewerModal />}
       {activeModal === 'floorplan' && <FloorPlanModal />}
       {activeModal === 'catalogue' && <SalonCatalogueModal />}

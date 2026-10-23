@@ -262,28 +262,30 @@ export class ArtworkMesh extends THREE.Group {
   }
 
   /**
-   * Resilient texture loader: loads from cache, IndexedDB, or URL with CORS safety
+   * Resilient texture loader: loads from IndexedDB, cache, fetch blob, or CORS-safe Image.
+   * Completely prevents WebGL cross-origin black texture bugs.
    */
   private async loadTexture(): Promise<void> {
     const { artwork } = this;
     let targetUrl = artwork.imageUrl;
 
-    // Check IndexedDB if the URL is missing or local
-    if (!targetUrl || targetUrl.startsWith('data:') || targetUrl.length > 50000) {
-      try {
-        const cached = await getImageFromIndexedDb(artwork.id);
-        if (cached) {
-          targetUrl = cached;
-        }
-      } catch (_) {}
-    }
+    // 1. Check IndexedDB first (fastest, offline, zero CORS issues)
+    try {
+      const dbKey = (targetUrl && targetUrl.startsWith('indexeddb://'))
+        ? targetUrl.replace('indexeddb://', '')
+        : artwork.id;
+      const cached = await getImageFromIndexedDb(dbKey);
+      if (cached) {
+        targetUrl = cached;
+      }
+    } catch (_) {}
 
-    if (!targetUrl) {
+    if (!targetUrl || targetUrl.startsWith('indexeddb://')) {
       this.applyFallbackTexture();
       return;
     }
 
-    // Check in-memory texture cache
+    // 2. Check in-memory texture cache
     if (loadedTextures.has(targetUrl)) {
       const tex = loadedTextures.get(targetUrl)!;
       this.applyTexture(tex);
@@ -294,59 +296,91 @@ export class ArtworkMesh extends THREE.Group {
       return;
     }
 
-    // Load with HTMLImageElement for maximum resilience and CORS support
-    const img = new Image();
+    // 3. For local data URLs or blob URLs: direct texture creation
+    if (targetUrl.startsWith('data:') || targetUrl.startsWith('blob:')) {
+      const img = new Image();
+      img.onload = () => {
+        const tex = new THREE.Texture(img);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.needsUpdate = true;
+        loadedTextures.set(targetUrl, tex);
+        this.applyTexture(tex);
 
-    // Only set crossOrigin on remote external URLs (NOT data: or blob:)
-    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
-      img.crossOrigin = 'anonymous';
+        if (img.naturalWidth && img.naturalHeight) {
+          this.updateFrameRatio(Number((img.naturalWidth / img.naturalHeight).toFixed(3)));
+        }
+      };
+      img.onerror = () => {
+        this.applyFallbackTexture();
+      };
+      img.src = targetUrl;
+      return;
     }
 
-    img.onload = () => {
-      const tex = new THREE.Texture(img);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.generateMipmaps = true;
-      tex.minFilter = THREE.LinearMipmapLinearFilter;
-      tex.magFilter = THREE.LinearFilter;
-      tex.needsUpdate = true;
+    // 4. Remote URLs (Firebase Storage / Unsplash): Attempt blob fetch for 100% CORS safety
+    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+      try {
+        const resp = await fetch(targetUrl, { mode: 'cors' });
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const img = new Image();
+          img.onload = () => {
+            const tex = new THREE.Texture(img);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.needsUpdate = true;
+            loadedTextures.set(targetUrl, tex);
+            this.applyTexture(tex);
 
-      loadedTextures.set(targetUrl, tex);
-      this.applyTexture(tex);
-
-      if (img.naturalWidth && img.naturalHeight) {
-        const naturalRatio = Number((img.naturalWidth / img.naturalHeight).toFixed(3));
-        this.updateFrameRatio(naturalRatio);
+            if (img.naturalWidth && img.naturalHeight) {
+              this.updateFrameRatio(Number((img.naturalWidth / img.naturalHeight).toFixed(3)));
+            }
+          };
+          img.onerror = () => {
+            this.applyFallbackTexture();
+          };
+          img.src = objectUrl;
+          return;
+        }
+      } catch (_) {
+        // Fetch failed, proceed to HTMLImageElement with anonymous CORS
       }
-    };
 
-    img.onerror = () => {
-      // If anonymous CORS failed, retry without crossOrigin as secondary attempt
-      if (img.crossOrigin) {
-        const retryImg = new Image();
-        retryImg.onload = () => {
-          const tex = new THREE.Texture(retryImg);
-          tex.colorSpace = THREE.SRGBColorSpace;
-          tex.generateMipmaps = true;
-          tex.minFilter = THREE.LinearMipmapLinearFilter;
-          tex.magFilter = THREE.LinearFilter;
-          tex.needsUpdate = true;
-          this.applyTexture(tex);
+      // 5. HTMLImageElement with anonymous CORS
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
 
-          if (retryImg.naturalWidth && retryImg.naturalHeight) {
-            const naturalRatio = Number((retryImg.naturalWidth / retryImg.naturalHeight).toFixed(3));
-            this.updateFrameRatio(naturalRatio);
-          }
-        };
-        retryImg.onerror = () => {
-          this.applyFallbackTexture();
-        };
-        retryImg.src = targetUrl;
-      } else {
+      img.onload = () => {
+        const tex = new THREE.Texture(img);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.needsUpdate = true;
+        loadedTextures.set(targetUrl, tex);
+        this.applyTexture(tex);
+
+        if (img.naturalWidth && img.naturalHeight) {
+          this.updateFrameRatio(Number((img.naturalWidth / img.naturalHeight).toFixed(3)));
+        }
+      };
+
+      img.onerror = () => {
+        // NEVER assign a tainted cross-origin image to WebGL as it causes pitch black renders
         this.applyFallbackTexture();
-      }
-    };
+      };
 
-    img.src = targetUrl;
+      img.src = targetUrl;
+      return;
+    }
+
+    this.applyFallbackTexture();
   }
 
   private applyTexture(tex: THREE.Texture): void {

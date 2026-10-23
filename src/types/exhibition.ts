@@ -1,10 +1,11 @@
 export type AwardTier = 
   | 'Best of Show'
-  | 'FIAP Gold'
-  | 'PSA Gold'
-  | 'FIAP Silver'
-  | 'PSA Bronze'
-  | 'FIAP Ribbon'
+  | 'IAAP Gold'
+  | 'National Gold'
+  | 'Gold Medal'
+  | 'Silver Medal'
+  | 'Bronze Medal'
+  | 'Merit Ribbon'
   | 'Honorable Mention'
   | 'Salon Acceptance'
   | string;
@@ -72,6 +73,7 @@ export interface GuestbookEntry {
   id: string;
   author: string;
   country: string;
+  distinction?: string; // Distinction / Honors (e.g. M IAAP, ARPS, Hon.PESGSPC, or School Distinction)
   message: string;
   timestamp: number;
   rating: number;
@@ -107,7 +109,7 @@ export interface SalonJudge {
 
 export interface PatronageOrg {
   id: string;
-  organization: string; // e.g. "IAAP", "FIAP", "PSA", etc.
+  organization: string; // e.g. "IAAP", "National Patronage", etc.
   patronageNumber: string; // e.g. "2026/503"
   certificateUrl?: string;
 }
@@ -122,11 +124,10 @@ export interface SalonInfo {
   iaapResultsUrl?: string; // Link to IAAP Results Page
   catalogPdfUrl?: string;
   catalogPdfName?: string;
+  ambientYoutubeUrl?: string; // YouTube URL for ambient background soundscape
   patronageList: PatronageOrg[]; // Admin managed organizations and patronage numbers
   patronages?: {
     iaap?: string;
-    fiap?: string;
-    psa?: string;
   };
   totalSubmissions: number;
   acceptedCount: number;

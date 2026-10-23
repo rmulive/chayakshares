@@ -1,7 +1,55 @@
-import React, { useState, useMemo } from 'react';
-import { X, Search, Trophy, Eye, ExternalLink, School, FileDown } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Search, Trophy, Eye, ExternalLink, School, FileDown, Image as ImageIcon } from 'lucide-react';
 import { exhibitionStore, useExhibitionStore } from '../../store/exhibitionStore';
 import type { Artwork } from '../../types/exhibition';
+import { getImageFromIndexedDb } from '../../utils/imageOptimizer';
+
+const CatalogueThumbnail: React.FC<{ art: Artwork }> = ({ art }) => {
+  const [src, setSrc] = useState<string>(art.imageUrl);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (art.imageUrl.startsWith('indexeddb://')) {
+      const key = art.imageUrl.replace('indexeddb://', '') || art.id;
+      getImageFromIndexedDb(key).then(cached => {
+        if (active && cached) setSrc(cached);
+      });
+    } else {
+      setSrc(art.imageUrl);
+    }
+    return () => { active = false; };
+  }, [art.id, art.imageUrl]);
+
+  const handleError = () => {
+    getImageFromIndexedDb(art.id).then(cached => {
+      if (cached) {
+        setSrc(cached);
+      } else {
+        setHasError(true);
+      }
+    });
+  };
+
+  if (hasError) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500 p-2 text-center">
+        <ImageIcon size={28} className="mb-1 opacity-50 text-amber-400" />
+        <span className="text-[10px] font-serif text-slate-400 truncate max-w-full">{art.title}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={art.title}
+      onError={handleError}
+      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      loading="lazy"
+    />
+  );
+};
 
 export const SalonCatalogueModal: React.FC = () => {
   const { artworks, wings, salonInfo } = useExhibitionStore();
@@ -66,7 +114,7 @@ export const SalonCatalogueModal: React.FC = () => {
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Curated international acceptances conforming to FIAP, PSA & IAAP standards
+              Curated international acceptances conforming to IAAP standards
             </p>
           </div>
 
@@ -203,12 +251,7 @@ export const SalonCatalogueModal: React.FC = () => {
               >
                 {/* Image & Award Overlay */}
                 <div className="relative aspect-[4/3] overflow-hidden bg-slate-950">
-                  <img
-                    src={art.imageUrl}
-                    alt={art.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
+                  <CatalogueThumbnail art={art} />
                   {/* Place / Award Badge */}
                   <div className="absolute top-2.5 left-2.5 max-w-[85%]">
                     <span
@@ -272,7 +315,7 @@ export const SalonCatalogueModal: React.FC = () => {
         {/* Footer status */}
         <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <span>Showing {filteredArtworks.length} of {artworks.length} works</span>
-          <span className="font-mono text-[11px] text-amber-400/80">FIAP / PSA Standard Catalogue</span>
+          <span className="font-mono text-[11px] text-amber-400/80">IAAP Recognized Exhibition Catalogue</span>
         </div>
       </div>
     </div>

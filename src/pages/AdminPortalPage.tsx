@@ -61,6 +61,7 @@ interface BulkUploadItem {
   id: string;
   file?: File;
   imageUrl: string;
+  localDataUrl?: string;
   title: string;
   photographer: string;
   school: string;
@@ -379,6 +380,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
           id: itemId,
           file,
           imageUrl: opt.dataUrl,
+          localDataUrl: opt.dataUrl,
           title: parsedMeta.title || file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
           photographer: parsedMeta.photographer || '',
           school: matchedSchool,
@@ -523,17 +525,12 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
     }
 
     const wing = activeWing;
-    const existingWingArtworks = artworks.filter(a => a.category === selectedSectionId);
-    let startIdx = existingWingArtworks.length;
 
     const newArtworks: Artwork[] = bulkQueue.map((item, idx) => {
-      const overallIdx = startIdx + idx;
-      const wallSide = overallIdx % 2 === 0 ? 'left' : 'right';
-      const zOffset = (wing?.zStart || 16) + 4 + (overallIdx * 6);
-
       const artId = `art-curator-${Date.now()}-${idx}`;
-      if (item.imageUrl && (item.imageUrl.startsWith('data:') || item.imageUrl.startsWith('blob:'))) {
-        saveImageToIndexedDb(artId, item.imageUrl).catch(() => {});
+      const localUrl = item.localDataUrl || item.imageUrl;
+      if (localUrl) {
+        saveImageToIndexedDb(artId, localUrl).catch(() => {});
       }
 
       return {
@@ -549,9 +546,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
         country: 'Sri Lanka',
         countryCode: 'LK',
         description: `Exhibition piece for ${wing?.name || 'Chayaksha 26\' Section'}.`,
-        position: [wallSide === 'left' ? -5.9 : 5.9, 2.3, zOffset],
-        wallSide,
-        rotationY: wallSide === 'left' ? Math.PI / 2 : -Math.PI / 2,
+        wallSide: 'left',
       };
     });
 
@@ -707,7 +702,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       id: `judge-${Date.now()}`,
       name: judgeName.trim(),
       country: judgeCountry.trim(),
-      honors: judgeHonors.trim() || 'AFIAP',
+      honors: judgeHonors.trim() || 'M IAAP',
       role: judgeRole.trim(),
       imageUrl: judgeImageUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80',
     };
@@ -755,6 +750,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
   const [editOfficialUrl, setEditOfficialUrl] = useState(salonInfo.officialUrl || 'https://chayaksha.rmulive.com');
   const [editIaapResultsUrl, setEditIaapResultsUrl] = useState(salonInfo.iaapResultsUrl || 'https://chayaksha.rmulive.com/results');
   const [editCatalogUrl, setEditCatalogUrl] = useState(salonInfo.catalogPdfUrl || '');
+  const [editAmbientYoutubeUrl, setEditAmbientYoutubeUrl] = useState(salonInfo.ambientYoutubeUrl || '');
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const handleCatalogUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -788,6 +784,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
       officialUrl: editOfficialUrl,
       iaapResultsUrl: editIaapResultsUrl,
       catalogPdfUrl: editCatalogUrl,
+      ambientYoutubeUrl: editAmbientYoutubeUrl.trim(),
     });
     showBanner('Exhibition details and links successfully updated and synchronized!');
   };
@@ -2147,7 +2144,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                     <label className="block text-slate-300 mb-1">Honors & Distinctions</label>
                     <input
                       type="text"
-                      placeholder="e.g. M IAAP, EFIAP/S, MZSF"
+                      placeholder="e.g. M IAAP, Hon.PESGSPC, MZSF"
                       value={judgeHonors}
                       onChange={(e) => setJudgeHonors(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none"
@@ -2270,7 +2267,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                   Patronages & Recognized Organizations
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Add international organizations (IAAP, FIAP, PSA, GPU, etc.) and their official patronage numbers. Default numbers are removed; you have full control.
+                  Add international organizations (IAAP, GPU, National Federation, etc.) and their official patronage numbers. Default numbers are removed; you have full control.
                 </p>
               </div>
 
@@ -2287,7 +2284,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. IAAP, FIAP, PSA, GPU"
+                      placeholder="e.g. IAAP, GPU, National Federation"
                       value={patronOrgName}
                       onChange={(e) => setPatronOrgName(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono uppercase"
@@ -2447,6 +2444,23 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                 )}
               </div>
 
+              {/* YouTube Ambient Background Sound */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <span>YouTube Ambient Sound URL (Optional)</span>
+                </label>
+                <input
+                  type="url"
+                  placeholder="e.g. https://www.youtube.com/watch?v=5qap5aO4i9A or https://youtu.be/..."
+                  value={editAmbientYoutubeUrl}
+                  onChange={(e) => setEditAmbientYoutubeUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                />
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  The 3D exhibition plays ambient sound exclusively from this YouTube URL. If no URL is provided, the exhibition stays completely silent.
+                </p>
+              </div>
+
               {/* Exhibition Metadata */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
@@ -2557,7 +2571,15 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
                       )}
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs text-white">{entry.author}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs text-white">{entry.author}</span>
+                            {entry.distinction && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                {entry.distinction}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400">({entry.country})</span>
+                          </div>
                           <span className="text-[10px] text-amber-400">{'★'.repeat(entry.rating)}</span>
                         </div>
                         <p className="text-xs text-slate-300 mt-1">{entry.message}</p>

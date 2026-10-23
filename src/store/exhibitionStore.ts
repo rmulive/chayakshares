@@ -141,10 +141,122 @@ function loadInitialWings(): CategoryWing[] {
   return CATEGORY_WINGS;
 }
 
+/**
+ * Dynamic Architectural Layout Engine
+ * Calculates non-colliding positions for all artworks along gallery walls,
+ * enforces 3.6m frame pair spacing (1.8m alternating visitor stride),
+ * and dynamically sizes section wings to house their respective photographs.
+ */
+export function layoutArtworks(
+  rawArtworks: Artwork[],
+  currentWings: CategoryWing[]
+): { artworks: Artwork[]; wings: CategoryWing[] } {
+  const wings: CategoryWing[] = currentWings.map(w => ({ ...w }));
+  const positionedArtworks: Artwork[] = [];
+  const assignedArtIds = new Set<string>();
+
+  // Grand Entrance Foyer (Wing 0)
+  if (wings.length > 0) {
+    wings[0].zStart = 0;
+    wings[0].zEnd = Math.max(16, wings[0].zEnd || 16);
+  }
+
+  const foyerWing = wings[0];
+  const foyerId = foyerWing ? foyerWing.id : 'foyer';
+
+  // Find foyer/hero pieces
+  const foyerArts = rawArtworks.filter(
+    a => (a.category === foyerId || a.category === 'foyer' || a.isHero) && !assignedArtIds.has(a.id)
+  );
+
+  foyerArts.forEach((art, idx) => {
+    assignedArtIds.add(art.id);
+    if (art.isHero || idx === 0) {
+      positionedArtworks.push({
+        ...art,
+        category: foyerId,
+        isHero: true,
+        position: [0, 3.2, 0.15],
+        wallSide: 'hero',
+        rotationY: 0,
+      });
+    } else {
+      const isLeft = idx % 2 === 1;
+      const z = 6.0 + Math.floor(idx / 2) * 3.6;
+      positionedArtworks.push({
+        ...art,
+        category: foyerId,
+        position: [isLeft ? -5.9 : 5.9, 2.3, z],
+        wallSide: isLeft ? 'left' : 'right',
+        rotationY: isLeft ? Math.PI / 2 : -Math.PI / 2,
+      });
+    }
+  });
+
+  // Calculate subsequent wings dynamically
+  let currentZ = wings.length > 0 ? wings[0].zEnd : 16;
+
+  for (let wIdx = 1; wIdx < wings.length; wIdx++) {
+    const wing = wings[wIdx];
+    wing.zStart = currentZ;
+
+    const wingArts = rawArtworks.filter(
+      a => (a.category === wing.id || (a as any).categoryWingId === wing.id) && !assignedArtIds.has(a.id)
+    );
+
+    wingArts.forEach((art, idx) => {
+      assignedArtIds.add(art.id);
+      const isLeft = idx % 2 === 0;
+      const pairIdx = Math.floor(idx / 2);
+      // Spacing: 3.6m per wall, alternating 1.8m left/right for an engaging walk
+      const z = wing.zStart + 4.0 + (pairIdx * 3.6) + (isLeft ? 0 : 1.8);
+
+      positionedArtworks.push({
+        ...art,
+        category: wing.id,
+        isHero: false,
+        position: [isLeft ? -5.9 : 5.9, 2.3, z],
+        wallSide: isLeft ? 'left' : 'right',
+        rotationY: isLeft ? Math.PI / 2 : -Math.PI / 2,
+      });
+    });
+
+    const numPairs = Math.ceil(wingArts.length / 2);
+    // 4.0m entrance buffer + pairs span + 4.0m exit buffer
+    const requiredSpan = Math.max(20, 8.0 + (numPairs * 3.6));
+    wing.zEnd = wing.zStart + Math.ceil(requiredSpan / 2) * 2;
+    currentZ = wing.zEnd;
+  }
+
+  // Any leftover artworks not categorized: attach to first available wing
+  const remaining = rawArtworks.filter(a => !assignedArtIds.has(a.id));
+  if (remaining.length > 0 && wings.length > 1) {
+    const targetWing = wings[1];
+    remaining.forEach((art, idx) => {
+      assignedArtIds.add(art.id);
+      const isLeft = idx % 2 === 0;
+      const z = targetWing.zStart + 4.0 + (idx * 1.8);
+      positionedArtworks.push({
+        ...art,
+        category: targetWing.id,
+        position: [isLeft ? -5.9 : 5.9, 2.3, z],
+        wallSide: isLeft ? 'left' : 'right',
+        rotationY: isLeft ? Math.PI / 2 : -Math.PI / 2,
+      });
+    });
+  } else if (remaining.length > 0) {
+    positionedArtworks.push(...remaining);
+  }
+
+  return { artworks: positionedArtworks, wings };
+}
+
+const initialLayout = layoutArtworks(loadInitialArtworks(), loadInitialWings());
+
 // Single-source state object
 let state: ExhibitionState = {
-  artworks: loadInitialArtworks(),
-  wings: loadInitialWings(),
+  artworks: initialLayout.artworks,
+  wings: initialLayout.wings,
   awards: loadInitialAwards(),
   salonInfo: loadInitialSalonInfo(),
   guestbook: loadInitialGuestbook(),
@@ -154,7 +266,7 @@ let state: ExhibitionState = {
   audioEnabled: false,
   audioVolume: 0.5,
   cameraPosition: { x: 0, y: 1.7, z: 4 },
-  currentWing: CATEGORY_WINGS[0],
+  currentWing: initialLayout.wings[0] || CATEGORY_WINGS[0],
   teleportTarget: null,
   isInspecting: false,
   adminUser: loadInitialAdmin(),
@@ -168,6 +280,21 @@ function notify() {
   listeners.forEach(fn => fn());
 }
 
+function applyLayout(rawArtworks: Artwork[], rawWings: CategoryWing[]) {
+  const { artworks, wings } = layoutArtworks(rawArtworks, rawWings);
+  state.artworks = artworks;
+  state.wings = wings;
+  safeSaveArtworksToLocalStorage(artworks);
+  try {
+    localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(wings));
+    broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: artworks });
+    broadcast?.postMessage({ type: 'SYNC_WINGS', payload: wings });
+  } catch (_) {}
+  saveArtworksToFirestore(artworks).catch(() => {});
+  saveWingsToFirestore(wings).catch(() => {});
+  notify();
+}
+
 // Cross-tab broadcast channel for real-time collaboration
 let broadcast: BroadcastChannel | null = null;
 try {
@@ -175,7 +302,9 @@ try {
   broadcast.onmessage = (event) => {
     const { type, payload } = event.data;
     if (type === 'SYNC_ARTWORKS') {
-      state.artworks = payload;
+      const layout = layoutArtworks(payload, state.wings);
+      state.artworks = layout.artworks;
+      state.wings = layout.wings;
       notify();
     } else if (type === 'SYNC_GUESTBOOK') {
       state.guestbook = payload;
@@ -190,7 +319,9 @@ try {
       state.awards = payload;
       notify();
     } else if (type === 'SYNC_WINGS') {
-      state.wings = payload;
+      const layout = layoutArtworks(state.artworks, payload);
+      state.artworks = layout.artworks;
+      state.wings = layout.wings;
       notify();
     }
   };
@@ -389,77 +520,43 @@ export const exhibitionStore = {
 
   // Curator actions: Artworks
   addArtwork: (artwork: Artwork) => {
-    const updated = [...state.artworks, artwork];
-    state.artworks = updated;
-    try {
-      localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(updated));
-      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
-    } catch (_) {}
-    saveArtworksToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout([...state.artworks, artwork], state.wings);
   },
 
   bulkAddArtworks: (newArtworks: Artwork[]) => {
-    const updated = [...state.artworks, ...newArtworks];
-    state.artworks = updated;
-    safeSaveArtworksToLocalStorage(updated);
-    try {
-      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
-    } catch (_) {}
-    saveArtworksToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout([...state.artworks, ...newArtworks], state.wings);
   },
 
   updateArtwork: (updatedArtwork: Artwork) => {
     const updated = state.artworks.map(a => a.id === updatedArtwork.id ? updatedArtwork : a);
-    state.artworks = updated;
-    safeSaveArtworksToLocalStorage(updated);
-    try {
-      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
-    } catch (_) {}
-    saveArtworksToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout(updated, state.wings);
+  },
+
+  reorderArtworks: (reorderedArtworks: Artwork[]) => {
+    applyLayout(reorderedArtworks, state.wings);
   },
 
   deleteArtwork: (id: string) => {
     const updated = state.artworks.filter(a => a.id !== id);
-    state.artworks = updated;
     if (state.activeArtwork?.id === id) {
       state.activeArtwork = null;
       state.isInspecting = false;
     }
-    safeSaveArtworksToLocalStorage(updated);
-    try {
-      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
-    } catch (_) {}
-    saveArtworksToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout(updated, state.wings);
   },
 
   bulkDeleteArtworks: (ids: string[]) => {
     const idSet = new Set(ids);
     const updated = state.artworks.filter(a => !idSet.has(a.id));
-    state.artworks = updated;
     if (state.activeArtwork && idSet.has(state.activeArtwork.id)) {
       state.activeArtwork = null;
       state.isInspecting = false;
     }
-    safeSaveArtworksToLocalStorage(updated);
-    try {
-      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: updated });
-    } catch (_) {}
-    saveArtworksToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout(updated, state.wings);
   },
 
   resetArtworksToDefault: () => {
-    state.artworks = INITIAL_ARTWORKS;
-    try {
-      localStorage.removeItem(STORAGE_KEY_ARTWORKS);
-      broadcast?.postMessage({ type: 'SYNC_ARTWORKS', payload: INITIAL_ARTWORKS });
-    } catch (_) {}
-    saveArtworksToFirestore(INITIAL_ARTWORKS).catch(() => {});
-    notify();
+    applyLayout(INITIAL_ARTWORKS, CATEGORY_WINGS);
   },
 
   // Awards Management
@@ -495,36 +592,17 @@ export const exhibitionStore = {
 
   // Categories / Wings Management
   addCategoryWing: (wing: CategoryWing) => {
-    const updated = [...state.wings, wing];
-    state.wings = updated;
-    try {
-      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
-      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
-    } catch (_) {}
-    saveWingsToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout(state.artworks, [...state.wings, wing]);
   },
 
   updateCategoryWing: (wing: CategoryWing) => {
     const updated = state.wings.map(w => w.id === wing.id ? wing : w);
-    state.wings = updated;
-    try {
-      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
-      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
-    } catch (_) {}
-    saveWingsToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout(state.artworks, updated);
   },
 
   deleteCategoryWing: (id: string) => {
     const updated = state.wings.filter(w => w.id !== id);
-    state.wings = updated;
-    try {
-      localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(updated));
-      broadcast?.postMessage({ type: 'SYNC_WINGS', payload: updated });
-    } catch (_) {}
-    saveWingsToFirestore(updated).catch(() => {});
-    notify();
+    applyLayout(state.artworks, updated);
   },
 
   addAwardToSection: (wingId: string, award: SectionAward) => {
@@ -769,12 +847,13 @@ export const exhibitionStore = {
 try {
   fetchInitialFirestoreData().then((remoteData) => {
     let changed = false;
-    if (remoteData.artworks && remoteData.artworks.length > 0) {
-      state.artworks = remoteData.artworks;
-      changed = true;
-    }
-    if (remoteData.wings && remoteData.wings.length > 0) {
-      state.wings = remoteData.wings;
+    let arts = remoteData.artworks && remoteData.artworks.length > 0 ? remoteData.artworks : state.artworks;
+    let wngs = remoteData.wings && remoteData.wings.length > 0 ? remoteData.wings : state.wings;
+
+    if (remoteData.artworks || remoteData.wings) {
+      const layout = layoutArtworks(arts, wngs);
+      state.artworks = layout.artworks;
+      state.wings = layout.wings;
       changed = true;
     }
     if (remoteData.salonInfo && remoteData.salonInfo.name) {
@@ -796,18 +875,24 @@ try {
   subscribeToFirestoreExhibition({
     onArtworks: (remoteArtworks) => {
       if (remoteArtworks && remoteArtworks.length > 0) {
-        state.artworks = remoteArtworks;
+        const layout = layoutArtworks(remoteArtworks, state.wings);
+        state.artworks = layout.artworks;
+        state.wings = layout.wings;
         try {
-          localStorage.setItem(STORAGE_KEY_ARTWORKS, JSON.stringify(remoteArtworks));
+          safeSaveArtworksToLocalStorage(layout.artworks);
+          localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(layout.wings));
         } catch (_) {}
         notify();
       }
     },
     onWings: (remoteWings) => {
       if (remoteWings && remoteWings.length > 0) {
-        state.wings = remoteWings;
+        const layout = layoutArtworks(state.artworks, remoteWings);
+        state.artworks = layout.artworks;
+        state.wings = layout.wings;
         try {
-          localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(remoteWings));
+          safeSaveArtworksToLocalStorage(layout.artworks);
+          localStorage.setItem(STORAGE_KEY_WINGS, JSON.stringify(layout.wings));
         } catch (_) {}
         notify();
       }
